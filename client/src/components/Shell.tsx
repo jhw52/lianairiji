@@ -11,6 +11,12 @@ export function Shell() {
 
   return (
     <div className="app-shell">
+      {settings?.bgUrl && (
+        <div
+          className="site-bg"
+          style={{ backgroundImage: `url("${settings.bgUrl}")`, opacity: settings.bgOpacity }}
+        />
+      )}
       <Sidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
       <div className="main" data-readonly={user?.guestMode === 'readonly' ? 'true' : undefined}>
         <header

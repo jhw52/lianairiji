@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { api, uploadFiles } from '../lib/api'
 import { useApi, useAuth } from '../lib/session'
@@ -20,8 +20,20 @@ export function SettingsPage() {
   const [newPwd, setNewPwd] = useState('')
   const [pwdMsg, setPwdMsg] = useState('')
   const [busy, setBusy] = useState(false)
-  const [uploading, setUploading] = useState<'avatar' | 'hero' | 'logo' | ''>('')
+  const [uploading, setUploading] = useState<'avatar' | 'hero' | 'logo' | 'bg' | ''>('')
   const [crop, setCrop] = useState<File | null>(null)
+  const [bgCrop, setBgCrop] = useState<File | null>(null)
+  const [heroOp, setHeroOp] = useState<number>(settings?.heroOpacity ?? 1)
+  const [bgOp, setBgOp] = useState<number>(settings?.bgOpacity ?? 0.35)
+  const opTimer = useRef<any>(null)
+
+  useEffect(() => { if (settings) setHeroOp(settings.heroOpacity ?? 1) }, [settings?.heroOpacity])
+  useEffect(() => { if (settings) setBgOp(settings.bgOpacity ?? 0.35) }, [settings?.bgOpacity])
+
+  const commitOpacity = (key: 'heroOpacity' | 'bgOpacity', v: number) => {
+    clearTimeout(opTimer.current)
+    opTimer.current = setTimeout(() => { patchSettings({ [key]: v } as any) }, 350)
+  }
 
   useEffect(() => {
     if (!settings) return
@@ -30,11 +42,11 @@ export function SettingsPage() {
     setMotto(settings.motto || '')
   }, [settings])
 
-  const upload = async (kind: 'avatar' | 'hero' | 'logo', file: File) => {
+  const upload = async (kind: 'avatar' | 'hero' | 'logo' | 'bg', file: File) => {
     if (!file.type.startsWith('image/')) return alert('请选择图片文件')
     setUploading(kind)
     try {
-      const usage = kind === 'avatar' ? 'avatar' : kind === 'logo' ? 'logo' : 'hero'
+      const usage = kind === 'avatar' ? 'avatar' : kind === 'logo' ? 'logo' : kind === 'bg' ? 'bg' : 'hero'
       const res = await uploadFiles([file], { usage })
       const r = res.results?.[0]
       if (!r?.ok || !r.media) throw new Error(r?.error || '上传失败')
@@ -44,6 +56,8 @@ export function SettingsPage() {
         avatarList.reload()
       } else if (kind === 'logo') {
         await patchSettings({ logoMediaId: r.media.id })
+      } else if (kind === 'bg') {
+        await patchSettings({ bgMediaId: r.media.id })
       } else {
         await patchSettings({ heroMediaId: r.media.id })
         home.reload()
@@ -70,6 +84,7 @@ export function SettingsPage() {
   }
 
   const heroPreview = home.data?.hero?.thumb || home.data?.hero?.large
+  const bgPreview = settings?.bgUrl || null
 
   if (user?.guestMode === 'readonly') return <Navigate to="/" replace />
 
@@ -101,7 +116,7 @@ export function SettingsPage() {
       <h1 className="text-[27px] mb-1" style={{ fontFamily: 'var(--font-serif)' }}>设置</h1>
       <p className="text-[13px] mb-7" style={{ color: 'var(--color-muted)' }}>站点信息与账号安全</p>
 
-      <Section title="头像与背景" desc="头像在整站统一使用；背景用在首页大字后面">
+      <Section title="头像与首图" desc="头像整站统一使用；首图是首页顶部那张卡片">
         <div className="grid md:grid-cols-2 gap-6">
           <div>
             <label className="label">我的头像</label>
@@ -129,7 +144,7 @@ export function SettingsPage() {
           </div>
 
           <div>
-            <label className="label">首页背景</label>
+            <label className="label">首图</label>
             <div
               className="rounded-xl overflow-hidden"
               style={{
@@ -141,7 +156,7 @@ export function SettingsPage() {
             />
             <div className="flex gap-2 mt-2.5">
               <label className="btn btn-sm cursor-pointer">
-                {uploading === 'hero' ? '上传中…' : '上传背景'}
+                {uploading === 'hero' ? '上传中…' : '上传首图'}
                 <input
                   type="file"
                   accept="image/*"
@@ -162,6 +177,53 @@ export function SettingsPage() {
                 </button>
               )}
             </div>
+            <Opacity label="首图透明度" value={heroOp} onChange={(v) => { setHeroOp(v); commitOpacity('heroOpacity', v) }} />
+          </div>
+        </div>
+      </Section>
+
+      <Section title="页面背景" desc="铺在整个网页的最底层，卡片和文字浮在上面">
+        <div className="flex flex-col md:flex-row gap-5">
+          <div
+            className="rounded-xl overflow-hidden relative flex-1"
+            style={{
+              minHeight: 120,
+              border: '1px solid var(--color-line)',
+              background: bgPreview
+                ? `url("${bgPreview}") center/cover no-repeat`
+                : 'repeating-linear-gradient(45deg,#f6ecdd,#f6ecdd 10px,#faf3e8 10px,#faf3e8 20px)'
+            }}
+          >
+            {bgPreview && (
+              <div style={{ position: 'absolute', inset: 0, background: 'var(--color-paper)', opacity: 1 - bgOp }} />
+            )}
+            {!bgPreview && (
+              <div className="absolute inset-0 grid place-items-center text-[12px]" style={{ color: 'var(--color-faint)' }}>
+                还没有设置背景
+              </div>
+            )}
+          </div>
+
+          <div className="md:w-[240px] shrink-0">
+            <div className="flex gap-2">
+              <label className="btn btn-sm cursor-pointer">
+                {uploading === 'bg' ? '上传中…' : '上传背景'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) setBgCrop(f)
+                    e.currentTarget.value = ''
+                  }}
+                />
+              </label>
+              {settings?.bgMediaId && (
+                <button className="btn btn-sm" onClick={() => patchSettings({ bgMediaId: null })}>移除</button>
+              )}
+            </div>
+            <Opacity label="背景透明度" value={bgOp} onChange={(v) => { setBgOp(v); commitOpacity('bgOpacity', v) }} />
           </div>
         </div>
       </Section>
@@ -284,6 +346,20 @@ export function SettingsPage() {
           }}
         />
       )}
+
+      {bgCrop && (
+        <ImageCropper
+          file={bgCrop}
+          aspect={16 / 9}
+          output={{ width: 1920, height: 1080 }}
+          title="调整页面背景"
+          onCancel={() => setBgCrop(null)}
+          onDone={async (blob) => {
+            setBgCrop(null)
+            await upload('bg', new File([blob], 'bg.jpg', { type: 'image/jpeg' }))
+          }}
+        />
+      )}
     </div>
   )
 }
@@ -297,5 +373,24 @@ function Section({ title, desc, children }: { title: string; desc?: string; chil
       </div>
       {children}
     </section>
+  )
+}
+
+function Opacity({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="mt-3">
+      <div className="flex items-center justify-between text-[12px] mb-1" style={{ color: 'var(--color-muted)' }}>
+        <span>{label}</span>
+        <span className="num" style={{ color: 'var(--color-faint)' }}>{Math.round(value * 100)}%</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={Math.round(value * 100)}
+        className="w-full"
+        onChange={(e) => onChange(Number(e.target.value) / 100)}
+      />
+    </div>
   )
 }

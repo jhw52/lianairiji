@@ -23,16 +23,23 @@ export function Home() {
     <div className="container-page">
       <section
         className="relative overflow-hidden rounded-[22px] mb-6 fade-up"
-        style={data?.hero ? {
-          border: '1px solid #e9e0d1',
-          backgroundImage: `linear-gradient(100deg, rgba(253,246,234,.93) 0%, rgba(250,242,230,.76) 45%, rgba(244,229,211,.52) 100%), url("${data.hero.large || data.hero.thumb || data.hero.orig}")`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center'
-        } : {
+        style={{
           border: '1px solid #e9e0d1',
           background: 'linear-gradient(135deg,#fdf6ea 0%,#f8ecdb 55%,#f3e2cf 100%)'
         }}
       >
+        {data?.hero && (
+          <>
+            <div
+              className="hero-img"
+              style={{
+                backgroundImage: `url("${data.hero.large || data.hero.thumb || data.hero.orig}")`,
+                opacity: settings?.heroOpacity ?? 1
+              }}
+            />
+            <div className="hero-wash" />
+          </>
+        )}
         {!data?.hero && (
           <div
             className="absolute -right-20 -top-24 w-[420px] h-[420px] rounded-full"

@@ -136,7 +136,7 @@ export async function ingestFile(file, opt = {}) {
   }
 
   const ts = nowIso()
-  const usage = ['avatar', 'logo', 'hero'].includes(opt.usage) ? opt.usage : 'gallery'
+  const usage = ['avatar', 'logo', 'hero', 'bg'].includes(opt.usage) ? opt.usage : 'gallery'
   run(`INSERT INTO media(id, sha256, kind, ext, mime, bytes, width, height,
         taken_at, taken_source, day, blur, path_thumb, path_large, path_orig,
         usage, created_by, created_at, updated_at)

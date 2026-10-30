@@ -17,6 +17,10 @@ export interface Settings {
   startDate: string | null
   motto: string
   heroMediaId: string | null
+  heroOpacity: number
+  bgMediaId: string | null
+  bgUrl: string | null
+  bgOpacity: number
   logo: string | null
   logoMediaId: string | null
   timezone: string

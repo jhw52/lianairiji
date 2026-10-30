@@ -32,12 +32,25 @@ function logoUrl() {
   return `/files/${m.path_thumb || m.path_large || m.path_orig}`
 }
 
+/** 页面背景图地址 */
+function bgUrl() {
+  const id = getSetting('site.bg_media_id', null)
+  if (!id) return null
+  const m = get(`SELECT * FROM media WHERE id = ? AND deleted_at IS NULL`, id)
+  if (!m) return null
+  return `/files/${m.path_large || m.path_thumb || m.path_orig}`
+}
+
 function publicSettings() {
   return {
     name: getSetting('site.name', '我们的世界'),
     startDate: getSetting('site.start_date', null),
     motto: getSetting('site.motto', ''),
     heroMediaId: getSetting('site.hero_media_id', null),
+    heroOpacity: Number(getSetting('site.hero_opacity', 1)),
+    bgMediaId: getSetting('site.bg_media_id', null),
+    bgUrl: bgUrl(),
+    bgOpacity: Number(getSetting('site.bg_opacity', 0.35)),
     logo: logoUrl(),
     logoMediaId: getSetting('site.logo_media_id', null),
     timezone: getSetting('site.timezone', 'Asia/Shanghai'),
@@ -261,7 +274,7 @@ export function registerRoutes(app) {
         const row = await ingestFile(files[i], {
           lastModified: Number(mtimes[i]) || null,
           createdBy: req.user.id,
-          usage: ['avatar', 'logo', 'hero'].includes(req.body?.usage) ? req.body.usage : 'gallery'
+          usage: ['avatar', 'logo', 'hero', 'bg'].includes(req.body?.usage) ? req.body.usage : 'gallery'
         })
         if (albumId) {
           run(`INSERT OR IGNORE INTO album_media(album_id, media_id, sort) VALUES(?,?,?)`,
@@ -433,6 +446,9 @@ export function registerRoutes(app) {
     if (b.motto !== undefined) setSetting('site.motto', String(b.motto).slice(0, 120))
     if (b.startDate !== undefined) setSetting('site.start_date', b.startDate || null)
     if (b.heroMediaId !== undefined) setSetting('site.hero_media_id', b.heroMediaId || null)
+    if (b.heroOpacity !== undefined) setSetting('site.hero_opacity', Math.min(1, Math.max(0, Number(b.heroOpacity))))
+    if (b.bgMediaId !== undefined) setSetting('site.bg_media_id', b.bgMediaId || null)
+    if (b.bgOpacity !== undefined) setSetting('site.bg_opacity', Math.min(1, Math.max(0, Number(b.bgOpacity))))
     if (b.logoMediaId !== undefined) setSetting('site.logo_media_id', b.logoMediaId || null)
     if (b.ui) {
       if (b.ui.sidebarWidth !== undefined) setSetting('ui.sidebar_width', Number(b.ui.sidebarWidth) || 248)

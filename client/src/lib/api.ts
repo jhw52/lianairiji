@@ -48,7 +48,7 @@ export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
 
 export function uploadFiles(
   files: File[],
-  extra: { albumId?: string; momentId?: string; usage?: 'gallery' | 'avatar' | 'logo' | 'hero' } = {},
+  extra: { albumId?: string; momentId?: string; usage?: 'gallery' | 'avatar' | 'logo' | 'hero' | 'bg' } = {},
   onProgress?: (ratio: number) => void
 ): Promise<{ results: Array<{ ok: boolean; media?: any; duplicate?: boolean; name?: string; error?: string }> }> {
   return new Promise((resolve, reject) => {
