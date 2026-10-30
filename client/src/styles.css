@@ -390,6 +390,22 @@ h1, h2, h3, h4 { font-family: var(--font-serif); font-weight: 600; letter-spacin
   .hand-unit { font-size: 34px; padding-bottom: 14px; }
 }
 
+
+/* ---------- 首页全屏背景板 ---------- */
+.home-hero {
+  position: relative;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  padding: 64px clamp(24px, 5vw, 88px);
+  overflow: hidden;
+}
+@media (max-width: 767px) {
+  .home-hero {
+    min-height: calc(100dvh - 56px);
+    padding: 36px 20px;
+  }
+}
 /* ---------- 欢迎回家 ---------- */
 .welcome-mask {
   position: fixed;
