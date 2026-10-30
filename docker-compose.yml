@@ -1,0 +1,14 @@
+services:
+  app:
+    build: .
+    container_name: zhuzhu-love
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    environment:
+      - TZ=Asia/Shanghai
+      - DATA_DIR=/data
+      - APP_SECRET=${APP_SECRET:-please-change-this-to-a-long-random-string}
+      - TRUST_PROXY=${TRUST_PROXY:-0}
+    volumes:
+      - ./data:/data
