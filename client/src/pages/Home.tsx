@@ -20,15 +20,16 @@ export function Home() {
   const recent = data?.recent || []
 
   return (
-    <>
-      <div className="home-stage">
+    <div className="container-page">
       <section
-        className="home-hero-card fade-up"
+        className="relative overflow-hidden rounded-[22px] mb-6 fade-up"
         style={data?.hero ? {
+          border: '1px solid #e9e0d1',
           backgroundImage: `linear-gradient(100deg, rgba(253,246,234,.93) 0%, rgba(250,242,230,.76) 45%, rgba(244,229,211,.52) 100%), url("${data.hero.large || data.hero.thumb || data.hero.orig}")`,
           backgroundSize: 'cover',
           backgroundPosition: 'center'
         } : {
+          border: '1px solid #e9e0d1',
           background: 'linear-gradient(135deg,#fdf6ea 0%,#f8ecdb 55%,#f3e2cf 100%)'
         }}
       >
@@ -38,7 +39,7 @@ export function Home() {
             style={{ background: 'radial-gradient(circle,#e9c3ad55,transparent 65%)' }}
           />
         )}
-        <div className="relative w-full max-w-[1180px] mx-auto">
+        <div className="relative px-7 py-8 md:px-12 md:py-10">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-2 text-[12px] tracking-[0.18em] pt-2" style={{ color: '#a3806a' }}>
               <span className="w-6 h-px" style={{ background: '#c9a58b' }} />
@@ -71,17 +72,15 @@ export function Home() {
           </p>
         </div>
       </section>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+        <Stat label="照片" value={data?.counts?.photos} icon="image" to="/albums?tab=all" />
+        <Stat label="视频" value={data?.counts?.videos} icon="play" to="/albums?tab=video" />
+        <Stat label="日记" value={data?.counts?.moments} icon="book" to="/timeline" />
+        <Stat label="相册" value={data?.counts?.albums} icon="folder" to="/albums?tab=albums" />
       </div>
 
-      <div className="container-page">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-          <Stat label="照片" value={data?.counts?.photos} icon="image" to="/albums?tab=all" />
-          <Stat label="视频" value={data?.counts?.videos} icon="play" to="/albums?tab=video" />
-          <Stat label="日记" value={data?.counts?.moments} icon="book" to="/timeline" />
-          <Stat label="相册" value={data?.counts?.albums} icon="folder" to="/albums?tab=albums" />
-        </div>
-
-        <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-3">
         <h2 className="section-title">最近的照片</h2>
         <Link to="/albums" className="text-[13px]" style={{ color: 'var(--color-rose-deep)' }}>
           查看全部 →
@@ -121,8 +120,7 @@ export function Home() {
           <Link to="/albums" className="btn btn-primary mt-5">开始上传</Link>
         </div>
       )}
-      </div>
-    </>
+    </div>
   )
 }
 
