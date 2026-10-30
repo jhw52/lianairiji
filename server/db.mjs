@@ -21,6 +21,13 @@ db.exec('PRAGMA foreign_keys = ON;')
 db.exec('PRAGMA busy_timeout = 5000;')
 
 const SCHEMA = `
+CREATE TABLE IF NOT EXISTS module_reads (
+  user_id TEXT NOT NULL,
+  module TEXT NOT NULL,
+  seen_at TEXT NOT NULL,
+  PRIMARY KEY (user_id, module)
+);
+
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   username TEXT NOT NULL UNIQUE,

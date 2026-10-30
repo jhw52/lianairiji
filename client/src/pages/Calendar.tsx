@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { api } from '../lib/api'
+import { useModuleNotice } from '../lib/unread'
 import { useApi } from '../lib/session'
 import { Icon } from '../components/Icon'
 import { Modal } from '../components/Modal'
@@ -37,6 +38,7 @@ function isInCycle(c: any, day: string, today: string) {
 }
 
 export function CalendarPage() {
+  useModuleNotice('calendar')
   const [month, setMonth] = useState(monthStr())
   const [mode, setMode] = useState<Mode>(() => (localStorage.getItem('calendar.mode.v2') === 'cycle' ? 'cycle' : 'event'))
   const { data, loading, reload } = useApi<any>(`/api/calendar?month=${month}`)

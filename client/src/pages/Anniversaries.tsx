@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { api } from '../lib/api'
+import { useModuleNotice } from '../lib/unread'
 import { useApi } from '../lib/session'
 import { Icon } from '../components/Icon'
 import { Modal } from '../components/Modal'
@@ -8,6 +9,7 @@ import { fmtDate, todayStr } from '../lib/utils'
 import { nextOccurrence, RECURRING_LABEL } from '../lib/events'
 
 export function Anniversaries() {
+  useModuleNotice('anniversaries')
   const { data, loading, reload } = useApi<any>('/api/anniversaries')
   const [form, setForm] = useState<null | { record?: any }>(null)
 

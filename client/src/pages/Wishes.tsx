@@ -1,11 +1,13 @@
 import { useMemo, useState } from 'react'
 import { api } from '../lib/api'
+import { useModuleNotice } from '../lib/unread'
 import { useApi } from '../lib/session'
 import { Icon } from '../components/Icon'
 
 const CATEGORIES = ['旅行', '美食', '体验', '礼物', '其他']
 
 export function Wishes() {
+  useModuleNotice('wishes')
   const { data, loading, reload } = useApi<any>('/api/todos')
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('体验')

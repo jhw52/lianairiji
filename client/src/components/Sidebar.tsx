@@ -3,15 +3,16 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { Icon } from './Icon'
 import { useAuth } from '../lib/session'
 import { avatarSrc } from '../lib/avatar'
+import { useUnread } from '../lib/unread'
 
 const NAV = [
   { to: '/', label: '首页', icon: 'home', end: true },
-  { to: '/timeline', label: '时间轴', icon: 'book' },
-  { to: '/albums', label: '相册', icon: 'image' },
-  { to: '/calendar', label: '日历', icon: 'calendar' },
-  { to: '/anniversaries', label: '纪念日', icon: 'gift' },
-  { to: '/wishes', label: '心愿清单', icon: 'list' },
-  { to: '/whisper', label: '悄悄话', icon: 'message' },
+  { to: '/timeline', label: '时间轴', icon: 'book', module: 'timeline' },
+  { to: '/albums', label: '相册', icon: 'image', module: 'albums' },
+  { to: '/calendar', label: '日历', icon: 'calendar', module: 'calendar' },
+  { to: '/anniversaries', label: '纪念日', icon: 'gift', module: 'anniversaries' },
+  { to: '/wishes', label: '心愿清单', icon: 'list', module: 'wishes' },
+  { to: '/whisper', label: '悄悄话', icon: 'message', module: 'whisper' },
   { to: '/report', label: '年度报告', icon: 'chart' }
 ]
 
@@ -21,6 +22,7 @@ const COLLAPSED = 72
 
 export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
   const { user, settings, logout, patchSettings, live } = useAuth()
+  const { items: unread } = useUnread()
   const navigate = useNavigate()
   const [width, setWidth] = useState(() => Number(localStorage.getItem('sidebar.width')) || 248)
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar.collapsed') === '1')
@@ -103,7 +105,7 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
 
         <nav className="flex-1 overflow-y-auto px-2.5 pb-3 space-y-0.5">
           {NAV.map((item) => (
-            <NavItem key={item.to} {...item} collapsed={isCollapsed} onNavigate={onClose} />
+            <NavItem key={item.to} {...item} unread={!!(item as any).module && unread[(item as any).module]?.unread} collapsed={isCollapsed} onNavigate={onClose} />
           ))}
         </nav>
 
@@ -184,9 +186,9 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
 }
 
 function NavItem({
-  to, label, icon, end, collapsed, onNavigate
+  to, label, icon, end, unread, collapsed, onNavigate
 }: {
-  to: string; label: string; icon: string; end?: boolean; collapsed: boolean; onNavigate: () => void
+  to: string; label: string; icon: string; end?: boolean; unread?: boolean; collapsed: boolean; onNavigate: () => void
 }) {
   return (
     <NavLink
@@ -207,6 +209,7 @@ function NavItem({
           )}
           <Icon name={icon} size={18} className="shrink-0" />
           {!collapsed && <span className="truncate">{label}</span>}
+          {unread && <span className={collapsed ? 'nav-dot nav-dot-mini' : 'nav-dot'} />}
         </>
       )}
     </NavLink>

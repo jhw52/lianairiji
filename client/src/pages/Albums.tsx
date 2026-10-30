@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
+import { useModuleNotice } from '../lib/unread'
 import { useApi, useAuth } from '../lib/session'
 import { Icon } from '../components/Icon'
 import { Uploader } from '../components/Uploader'
@@ -19,6 +20,7 @@ const TABS: Array<{ key: Tab; label: string }> = [
 ]
 
 export function Albums() {
+  useModuleNotice('albums')
   const { version } = useAuth()
   const [params] = useSearchParams()
   const [tab, setTab] = useState<Tab>(() => {
@@ -33,6 +35,45 @@ export function Albums() {
   const [lightbox, setLightbox] = useState<number | null>(null)
   const [newAlbum, setNewAlbum] = useState(false)
   const [albumTitle, setAlbumTitle] = useState('')
+  const [selecting, setSelecting] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selBusy, setSelBusy] = useState(false)
+
+  const cancelSel = () => { setSelecting(false); setSelected(new Set()) }
+  const toggleSel = (id: string) => setSelected((prev) => {
+    const n = new Set(prev)
+    n.has(id) ? n.delete(id) : n.add(id)
+    return n
+  })
+
+  const batchDelete = async () => {
+    if (!selected.size) return
+    if (!confirm(`删除选中的 ${selected.size} 项？删掉后可以在备份里找回`)) return
+    setSelBusy(true)
+    try {
+      for (const id of selected) await api(`/api/media/${id}`, { method: 'DELETE' })
+      cancelSel()
+      await load(true)
+    } catch (e: any) {
+      alert(e.message || '删除失败')
+    } finally {
+      setSelBusy(false)
+    }
+  }
+
+  const batchSave = async () => {
+    if (!selected.size) return
+    const list = flat.filter((m) => selected.has(m.id))
+    for (const m of list) {
+      const a = document.createElement('a')
+      a.href = m.orig
+      a.download = m.caption || `${m.day || 'photo'}-${m.id.slice(0, 6)}`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      await new Promise((r) => setTimeout(r, 400))
+    }
+  }
   const albums = useApi<any>(tab === 'albums' ? '/api/albums' : null)
 
   const scope = tab === 'video' ? 'video' : tab === 'fav' ? 'fav' : 'photo'
@@ -93,6 +134,33 @@ export function Albums() {
           ))}
         </div>
       </div>
+
+      {tab !== 'albums' && tab !== 'ai' && !loading && items.length > 0 && (
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          {!selecting ? (
+            <button className="btn btn-sm" onClick={() => setSelecting(true)}>批量选择</button>
+          ) : (
+            <>
+              <span className="text-[12.5px] mr-auto" style={{ color: 'var(--color-muted)' }}>
+                已选 {selected.size} 项
+              </span>
+              <button className="btn btn-sm" onClick={() => setSelected(new Set(flat.map((m) => m.id)))}>全选</button>
+              <button className="btn btn-sm" onClick={batchSave} disabled={!selected.size || selBusy}>
+                保存到本地
+              </button>
+              <button
+                className="btn btn-sm"
+                onClick={batchDelete}
+                disabled={!selected.size || selBusy}
+                style={{ color: '#a04435' }}
+              >
+                {selBusy ? '删除中…' : '删除'}
+              </button>
+              <button className="btn btn-sm" onClick={cancelSel}>取消</button>
+            </>
+          )}
+        </div>
+      )}
 
       {tab !== 'albums' && tab !== 'ai' && (
         <div className="mb-6">
@@ -155,7 +223,14 @@ export function Albums() {
                 )}
                 <div className="columns-2 md:columns-3 xl:columns-4 gap-3">
                   {g.items.map(({ item, idx }) => (
-                    <PhotoCard key={item.id} item={item} onClick={() => open(idx)} />
+                    <PhotoCard
+                      key={item.id}
+                      item={item}
+                      selecting={selecting}
+                      selected={selected.has(item.id)}
+                      onToggle={() => toggleSel(item.id)}
+                      onClick={() => (selecting ? toggleSel(item.id) : open(idx))}
+                    />
                   ))}
                 </div>
               </section>
@@ -219,7 +294,15 @@ export function Albums() {
   )
 }
 
-function PhotoCard({ item, onClick }: { item: any; onClick: () => void }) {
+function PhotoCard({
+  item, onClick, selecting, selected, onToggle
+}: {
+  item: any
+  onClick: () => void
+  selecting?: boolean
+  selected?: boolean
+  onToggle?: () => void
+}) {
   const ratio = item.width && item.height ? `${item.width}/${item.height}` : '4/5'
   return (
     <button
@@ -254,6 +337,20 @@ function PhotoCard({ item, onClick }: { item: any; onClick: () => void }) {
       {item.takenSource === 'mtime' && (
         <span className="absolute bottom-2 left-2 text-[10px] px-1.5 py-0.5 rounded" style={{ background: 'rgba(0,0,0,.4)', color: '#fff' }}>
           日期待确认
+        </span>
+      )}
+      {selecting && (
+        <span
+          className="absolute top-2 left-2 w-6 h-6 rounded-full grid place-items-center"
+          style={{
+            background: selected ? '#c0705f' : 'rgba(255,255,255,.9)',
+            border: selected ? 'none' : '1.5px solid #cbb9a4',
+            color: '#fff',
+            boxShadow: '0 2px 8px rgba(0,0,0,.15)'
+          }}
+          onClick={(e) => { e.stopPropagation(); onToggle?.() }}
+        >
+          {selected && <Icon name="check" size={13} />}
         </span>
       )}
     </button>

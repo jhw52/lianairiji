@@ -161,6 +161,51 @@ export function registerRoutes(app) {
     })
   }))
 
+  // 首页「点击显示更多」：按天倒序分页取图
+  app.get('/api/photos', authRequired, h(async (req, res) => {
+    const limit = Math.min(60, Math.max(1, Number(req.query.limit) || 12))
+    const offset = Math.max(0, Number(req.query.offset) || 0)
+    const rows = all(
+      `SELECT * FROM media WHERE deleted_at IS NULL AND usage = 'gallery' AND kind != 'video'
+       ORDER BY taken_at DESC, created_at DESC LIMIT ? OFFSET ?`,
+      limit + 1, offset
+    )
+    ok(res, { list: rows.slice(0, limit).map(mediaPublic), hasMore: rows.length > limit })
+  }))
+
+  // ---------- 未读提醒 ----------
+  const UNREAD_SOURCES = {
+    albums: `SELECT MAX(COALESCE(updated_at, created_at)) AS t FROM media WHERE deleted_at IS NULL AND usage = 'gallery'`,
+    timeline: `SELECT MAX(COALESCE(updated_at, created_at)) AS t FROM moments WHERE deleted_at IS NULL`,
+    calendar: `SELECT MAX(t) AS t FROM (SELECT MAX(COALESCE(updated_at, created_at)) AS t FROM cycle_records UNION ALL SELECT MAX(COALESCE(updated_at, created_at)) AS t FROM intimacy_records)`,
+    anniversaries: `SELECT MAX(COALESCE(updated_at, created_at)) AS t FROM anniversaries`,
+    wishes: `SELECT MAX(COALESCE(updated_at, created_at)) AS t FROM todos`,
+    whisper: `SELECT MAX(COALESCE(updated_at, created_at)) AS t FROM messages WHERE deleted_at IS NULL`
+  }
+
+  app.get('/api/unread', authRequired, h(async (req, res) => {
+    const now = nowIso()
+    const items = {}
+    for (const [key, sql] of Object.entries(UNREAD_SOURCES)) {
+      const row = get(`SELECT seen_at FROM module_reads WHERE user_id = ? AND module = ?`, req.user.id, key)
+      if (!row) {
+        run(`INSERT OR IGNORE INTO module_reads(user_id, module, seen_at) VALUES(?,?,?)`, req.user.id, key, now)
+        items[key] = { unread: false, at: null }
+        continue
+      }
+      const last = get(sql)?.t || null
+      items[key] = { unread: !!last && last > row.seen_at, at: last }
+    }
+    ok(res, { items })
+  }))
+
+  app.post('/api/unread/read', authRequired, h(async (req, res) => {
+    const module = String(req.body?.module || '')
+    if (!UNREAD_SOURCES[module]) return fail(res, 400, 'VALIDATION', '未知模块')
+    run(`INSERT OR REPLACE INTO module_reads(user_id, module, seen_at) VALUES(?,?,?)`, req.user.id, module, nowIso())
+    ok(res, { ok: true })
+  }))
+
   // 设置我的头像（上传照片 / 系统头像 / 历史头像三选一）
   function rememberAvatar(userId, path, source) {
     run(`UPDATE users SET avatar_path = ? WHERE id = ?`, path, userId)

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../lib/api'
+import { useModuleNotice } from '../lib/unread'
 import { useApi } from '../lib/session'
 import { Icon } from '../components/Icon'
 import { fmtDateTime } from '../lib/utils'
 import { avatarSrc } from '../lib/avatar'
 
 export function Whisper() {
+  useModuleNotice('whisper')
   const { data, loading, reload } = useApi<any>('/api/messages')
   const [text, setText] = useState('')
   const [isPrivate, setIsPrivate] = useState(false)

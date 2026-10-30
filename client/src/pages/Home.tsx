@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useApi, useAuth } from '../lib/session'
 import { Icon } from '../components/Icon'
 import { elapseParts } from '../lib/utils'
+import { api } from '../lib/api'
 
 export function Home() {
   const { data, loading } = useApi<any>('/api/home')
@@ -18,14 +19,61 @@ export function Home() {
   const p = start ? elapseParts(start, now) : { totalDays: 0, hours: 0, minutes: 0, seconds: 0 }
   const pad = (n: number) => String(n).padStart(2, '0')
   const recent = data?.recent || []
+  const [extra, setExtra] = useState<any[]>([])
+  const [hasMore, setHasMore] = useState(true)
+  const [moreBusy, setMoreBusy] = useState(false)
+  const heroRef = useRef<HTMLElement | null>(null)
+
+  // 往下拉时，首图轻微上浮 + 淡出，形成"浮现"感
+  useEffect(() => {
+    let raf = 0
+    const onScroll = () => {
+      cancelAnimationFrame(raf)
+      raf = requestAnimationFrame(() => {
+        const el = heroRef.current
+        if (!el) return
+        const y = window.scrollY
+        const k = Math.min(1, y / 520)
+        el.style.transform = `translateY(${y * 0.08}px) scale(${1 - k * 0.015})`
+        el.style.opacity = String(1 - k * 0.45)
+      })
+    }
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      window.removeEventListener('scroll', onScroll)
+      cancelAnimationFrame(raf)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (data) setHasMore((data.recent?.length || 0) >= 8)
+  }, [data])
+
+  const photos = [...recent, ...extra].filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i)
+
+  const loadMore = async () => {
+    if (moreBusy || !hasMore) return
+    setMoreBusy(true)
+    try {
+      const r = await api<any>(`/api/photos?offset=${photos.length}&limit=12`)
+      const list = (r.list || []).filter((m: any) => !photos.some((x) => x.id === m.id))
+      setExtra((prev) => [...prev, ...list])
+      setHasMore(!!r.hasMore && list.length > 0)
+    } catch {
+      setHasMore(false)
+    } finally {
+      setMoreBusy(false)
+    }
+  }
 
   return (
     <div className="container-page">
       <section
+        ref={heroRef}
         className="relative overflow-hidden rounded-[22px] mb-6 fade-up"
         style={{
-          border: '1px solid #e9e0d1',
-          background: 'linear-gradient(135deg,#fdf6ea 0%,#f8ecdb 55%,#f3e2cf 100%)'
+          background: 'linear-gradient(135deg,#fdf6ea 0%,#f8ecdb 55%,#f3e2cf 100%)',
+          willChange: 'transform, opacity'
         }}
       >
         {data?.hero && (
@@ -98,9 +146,9 @@ export function Home() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[0, 1, 2, 3].map((i) => <div key={i} className="skeleton aspect-square rounded-xl" />)}
         </div>
-      ) : recent.length ? (
+      ) : photos.length ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {recent.map((m: any) => (
+          {photos.map((m: any) => (
             <Link
               key={m.id}
               to="/albums"
@@ -126,6 +174,30 @@ export function Home() {
           </p>
           <Link to="/albums" className="btn btn-primary mt-5">开始上传</Link>
         </div>
+      )}
+
+      {!loading && photos.length > 0 && (
+        hasMore ? (
+          <div className="mt-7 text-center">
+            <button
+              onClick={loadMore}
+              disabled={moreBusy}
+              className="bg-transparent border-0 p-0 text-[13px]"
+              style={{
+                color: 'var(--color-rose-deep)',
+                textDecoration: 'underline',
+                textUnderlineOffset: 5,
+                cursor: moreBusy ? 'default' : 'pointer'
+              }}
+            >
+              {moreBusy ? '加载中…' : '点击显示更多'}
+            </button>
+          </div>
+        ) : (
+          <p className="mt-7 text-center text-[12.5px]" style={{ color: 'var(--color-faint)' }}>
+            已经到底啦~
+          </p>
+        )
       )}
     </div>
   )

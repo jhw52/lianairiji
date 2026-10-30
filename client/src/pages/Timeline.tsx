@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { api, uploadFiles } from '../lib/api'
+import { useModuleNotice } from '../lib/unread'
 import { useApi } from '../lib/session'
 import { Icon } from '../components/Icon'
 import { DateField } from '../components/DateField'
@@ -7,6 +8,7 @@ import { Markdown } from '../components/Markdown'
 import { fmtDate, weekday, todayStr } from '../lib/utils'
 
 export function Timeline() {
+  useModuleNotice('timeline')
   const { data, loading, reload } = useApi<any>('/api/moments')
   const [editor, setEditor] = useState<null | { mode: 'new' | 'edit'; moment?: any }>(null)
   const moments = data?.moments || []

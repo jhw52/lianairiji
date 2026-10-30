@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar'
 import { Icon } from './Icon'
 import { useAuth } from '../lib/session'
 import { WelcomeOverlay } from './WelcomeOverlay'
+import { SiteToast } from './SiteToast'
 
 export function Shell() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -11,6 +12,7 @@ export function Shell() {
 
   return (
     <div className="app-shell">
+      <SiteToast />
       {settings?.bgUrl && (
         <div
           className="site-bg"
