@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../lib/session'
 import { api } from '../lib/api'
@@ -10,7 +10,15 @@ export function Login() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [err, setErr] = useState('')
+  const [prefilled, setPrefilled] = useState(false)
   const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    const q = new URLSearchParams(loc.search)
+    const u = q.get('u')
+    const p = q.get('p')
+    if (u && p) { setUsername(u); setPassword(p); setPrefilled(true) }
+  }, [loc.search])
 
   if (ready && user) return <Navigate to="/" replace />
 
@@ -118,6 +126,12 @@ export function Login() {
             </div>
           )}
 
+          {prefilled && (
+            <div className="mt-4 text-[12.5px] px-3 py-2 rounded-lg" style={{ background: '#f6ecdd', color: '#8a6a52' }}>
+              已为你填好游客账号，点下面的按钮进入（只读，不能修改）
+            </div>
+          )}
+
           <button className="btn btn-primary w-full h-11 mt-6" disabled={busy || !username || !password}>
             {busy ? '正在进入…' : '进入我们的世界'}
           </button>
@@ -133,11 +147,11 @@ export function Login() {
               className="btn w-full"
               onClick={() => { setUsername('guest'); setPassword('guest1234'); setErr('') }}
             >
-              游客登录
+              演示模式
             </button>
             <p className="text-[11px] mt-2 text-center leading-5" style={{ color: 'var(--color-faint)' }}>
-              会帮你填好游客账号，再点上面的按钮进入<br />
-              游客可以随便试用，退出后一切复原
+              会帮你填好演示账号，再点上面的按钮进入<br />
+              演示里可以随便试用，退出后一切复原
             </p>
           </div>
 

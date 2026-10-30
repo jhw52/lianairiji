@@ -353,6 +353,20 @@ function visitorPassword() {
   return pass
 }
 
+/** 读只读访客的明文密码（仅站长可见，用于生成"游客登录"二维码） */
+export function getVisitorPassword() {
+  const row = mainGet(`SELECT value FROM settings WHERE key = 'guest.visitor_pass'`)
+  if (!row) return null
+  try { return JSON.parse(row.value) } catch { return null }
+}
+
+/** 重置只读访客密码：更新哈希 + 记住明文供二维码使用 */
+export function setVisitorPassword(password) {
+  const hash = bcrypt.hashSync(password, 10)
+  mainRun(`UPDATE users SET password_hash = ? WHERE username = ?`, hash, VISITOR_USER)
+  mainRun(`INSERT OR REPLACE INTO settings(key, value) VALUES('guest.visitor_pass', ?)`, JSON.stringify(password))
+}
+
 export function ensureGuests() {
   const ts = nowIso()
 

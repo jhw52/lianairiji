@@ -1,6 +1,6 @@
 import express from 'express'
 import multer from 'multer'
-import { all, get, run, tx, nowIso, getSetting, setSetting, getVersion, resetSandbox } from './db.mjs'
+import { all, get, run, tx, nowIso, getSetting, setSetting, getVersion, resetSandbox, getVisitorPassword, setVisitorPassword, VISITOR_USER } from './db.mjs'
 import {
   authRequired, currentUser, verifyLogin, createSession, destroySession,
   touchLogin, loginGuard, loginFailed, loginOk, changePassword, audit
@@ -188,6 +188,20 @@ export function registerRoutes(app) {
     rememberAvatar(req.user.id, path, source)
     broadcast(['settings'], req.user.display_name)
     ok(res, { avatar: path })
+  }))
+
+  // 只读访客（游客登录）的凭据：只有站长能看，用来生成二维码
+  app.get('/api/guest/visitor', authRequired, h(async (req, res) => {
+    if (req.user.guest_mode !== 'none') return fail(res, 403, 'FORBIDDEN', '游客看不到这个')
+    ok(res, { username: VISITOR_USER, password: getVisitorPassword() })
+  }))
+
+  app.post('/api/guest/visitor/password', authRequired, h(async (req, res) => {
+    if (req.user.role !== 'owner') return fail(res, 403, 'FORBIDDEN', '只有站长可以修改')
+    const pass = String(req.body?.password || '').trim()
+    if (pass.length < 6) return fail(res, 400, 'VALIDATION', '密码至少 6 位')
+    setVisitorPassword(pass)
+    ok(res, { username: VISITOR_USER, password: pass })
   }))
 
   // 清除我的头像
