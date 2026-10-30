@@ -1,6 +1,6 @@
 import express from 'express'
 import multer from 'multer'
-import { all, get, run, tx, nowIso, getSetting, setSetting, getVersion, resetSandbox, getVisitorPassword, setVisitorPassword, VISITOR_USER } from './db.mjs'
+import { all, get, run, tx, nowIso, getSetting, setSetting, getVersion, resetSandbox, getVisitorPassword, setVisitorPassword, rotateVisitorPassword, VISITOR_USER } from './db.mjs'
 import {
   authRequired, currentUser, verifyLogin, createSession, destroySession,
   touchLogin, loginGuard, loginFailed, loginOk, changePassword, audit
@@ -84,6 +84,13 @@ export function registerRoutes(app) {
     loginOk(req.ip)
     createSession(user.id, req, res)
     touchLogin(user.id, req.ip, req.headers['user-agent'])
+
+    // 游客（只读）每次登录成功就换一次密码：刚才那张二维码立刻作废
+    if (user.guest_mode === 'readonly') {
+      rotateVisitorPassword()
+      broadcast(['settings'], '游客登录')
+    }
+
     ok(res, { user: userOut(user) })
   }))
 

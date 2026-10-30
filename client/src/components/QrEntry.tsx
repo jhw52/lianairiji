@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import { Icon } from './Icon'
 import { api } from '../lib/api'
+import { useApi } from '../lib/session'
 
 const isLocal = (u: string) => /\/\/(localhost|127\.0\.0\.1|\[::1\])/i.test(u)
 
@@ -9,14 +10,12 @@ export function QrEntry() {
   const origin = window.location.origin
   const [mode, setMode] = useState<'login' | 'visitor'>('login')
   const [base, setBase] = useState(() => (isLocal(origin) ? '' : `${origin}/login`))
-  const [visitor, setVisitor] = useState<{ username: string; password: string | null } | null>(null)
+  const creds = useApi<any>('/api/guest/visitor')
+  const visitor = creds.data as { username: string; password: string | null } | null
   const [dataUrl, setDataUrl] = useState('')
   const [copied, setCopied] = useState(false)
   const [err, setErr] = useState('')
 
-  useEffect(() => {
-    api<any>('/api/guest/visitor').then(setVisitor).catch(() => {})
-  }, [])
 
   const target = useMemo(() => {
     const b = base.trim()
@@ -106,7 +105,7 @@ export function QrEntry() {
       </div>
 
       {mode === 'visitor' && (
-        <VisitorBox visitor={visitor} onChange={setVisitor} />
+        <VisitorBox visitor={visitor} reload={creds.reload} />
       )}
 
       <p className="text-[11.5px] mt-4 leading-5" style={{ color: 'var(--color-faint)' }}>
@@ -117,10 +116,10 @@ export function QrEntry() {
 }
 
 function VisitorBox({
-  visitor, onChange
+  visitor, reload
 }: {
   visitor: { username: string; password: string | null } | null
-  onChange: (v: { username: string; password: string | null }) => void
+  reload: () => void
 }) {
   const [reveal, setReveal] = useState(false)
   const [newPw, setNewPw] = useState('')
@@ -131,8 +130,8 @@ function VisitorBox({
     if (newPw.trim().length < 6) { setMsg('至少 6 位'); return }
     setBusy(true); setMsg('')
     try {
-      const r = await api<any>('/api/guest/visitor/password', { method: 'POST', body: { password: newPw.trim() } })
-      onChange(r)
+      await api('/api/guest/visitor/password', { method: 'POST', body: { password: newPw.trim() } })
+      reload()
       setNewPw('')
       setMsg('已更新，旧二维码作废')
     } catch (e: any) {
@@ -169,7 +168,8 @@ function VisitorBox({
       </div>
 
       <p className="text-[11px] mt-2 leading-5" style={{ color: '#a3806a' }}>
-        这个二维码里带着密码，谁扫到都能以游客（只读）身份进入，别发到公开的地方。改了密码旧二维码立刻失效。
+        这个二维码里带着密码，谁扫到都能以游客（只读）身份进入，别发到公开的地方。<br />
+        游客每成功登录一次，密码就会自动换新，旧二维码立刻失效；这个页面会自动刷新出新的。
       </p>
     </div>
   )

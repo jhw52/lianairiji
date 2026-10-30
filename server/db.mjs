@@ -367,6 +367,13 @@ export function setVisitorPassword(password) {
   mainRun(`INSERT OR REPLACE INTO settings(key, value) VALUES('guest.visitor_pass', ?)`, JSON.stringify(password))
 }
 
+/** 游客登录成功后立刻换密码：刚才那张二维码/密码随即失效 */
+export function rotateVisitorPassword() {
+  const pass = crypto.randomBytes(6).toString('base64url')
+  setVisitorPassword(pass)
+  return pass
+}
+
 export function ensureGuests() {
   const ts = nowIso()
 
