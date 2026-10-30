@@ -358,13 +358,14 @@ export function ensureGuests() {
 
   mainRun(`DELETE FROM users WHERE username IN ('guest-empty', 'guest-readonly')`)
 
-  // 已存在就只同步角色/昵称，不覆盖密码
-  const upsert = (username, name, mode, password) => {
+  // 已存在就只同步角色/昵称，不覆盖密码；密码只在首次创建时求值
+  const upsert = (username, name, mode, getPassword) => {
     const row = mainGet(`SELECT id FROM users WHERE username = ?`, username)
     if (row) {
       mainRun(`UPDATE users SET guest_mode = ?, display_name = ?, role = 'guest' WHERE id = ?`, mode, name, row.id)
       return
     }
+    const password = typeof getPassword === 'function' ? getPassword() : getPassword
     mainRun(
       `INSERT INTO users(id, username, display_name, role, password_hash, guest_mode, created_at)
        VALUES(?,?,?,?,?,?,?)`,
@@ -373,5 +374,5 @@ export function ensureGuests() {
   }
 
   upsert(GUEST_USER, '游客', 'sandbox', GUEST_PASS)
-  upsert(VISITOR_USER, '访客', 'readonly', visitorPassword())
+  upsert(VISITOR_USER, '访客', 'readonly', visitorPassword)
 }
