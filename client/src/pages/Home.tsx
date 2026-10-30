@@ -21,8 +21,9 @@ export function Home() {
 
   return (
     <>
+      <div className="home-stage">
       <section
-        className="home-hero fade-up"
+        className="home-hero-card fade-up"
         style={data?.hero ? {
           backgroundImage: `linear-gradient(100deg, rgba(253,246,234,.93) 0%, rgba(250,242,230,.76) 45%, rgba(244,229,211,.52) 100%), url("${data.hero.large || data.hero.thumb || data.hero.orig}")`,
           backgroundSize: 'cover',
@@ -70,6 +71,7 @@ export function Home() {
           </p>
         </div>
       </section>
+      </div>
 
       <div className="container-page">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
