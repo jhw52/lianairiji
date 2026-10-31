@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useModuleNotice } from '../lib/unread'
@@ -116,6 +116,28 @@ export function Albums() {
 
   const open = (idx: number) => setLightbox(idx)
   const flat = items
+
+  // 从首页点某张照片跳过来：自动滚到它并打开灯箱
+  const targetPhoto = params.get('photo')
+  const openedPhoto = useRef<string | null>(null)
+  useEffect(() => {
+    if (!targetPhoto || loading) return
+    if (openedPhoto.current === targetPhoto) return
+    const idx = items.findIndex((m) => m.id === targetPhoto)
+    if (idx >= 0) {
+      openedPhoto.current = targetPhoto
+      setLightbox(idx)
+      return
+    }
+    if (hasMore) return
+    openedPhoto.current = targetPhoto
+    api(`/api/media/${targetPhoto}`)
+      .then((m: any) => {
+        setItems((prev) => [m, ...prev.filter((x) => x.id !== m.id)])
+        setLightbox(0)
+      })
+      .catch(() => {})
+  }, [targetPhoto, items, loading, hasMore])
 
   return (
     <div className="container-page">

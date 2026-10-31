@@ -445,7 +445,7 @@ h1, h2, h3, h4 { font-family: var(--font-serif); font-weight: 600; letter-spacin
 .hero-wash {
   position: absolute;
   inset: 0;
-  background: linear-gradient(100deg, rgba(253,246,234,.93) 0%, rgba(250,242,230,.76) 45%, rgba(244,229,211,.52) 100%);
+  background: rgba(250,246,239,.26);
 }
 .site-bg {
   position: fixed;
@@ -501,6 +501,10 @@ h1, h2, h3, h4 { font-family: var(--font-serif); font-weight: 600; letter-spacin
   right: 9px;
   margin: 0;
 }
+
+
+/* 首页最近照片：铺满裁切，避免露出底色像边框 */
+.photo-tile--cover img { object-fit: cover; }
 
 /* ---------- 悄悄话气泡 ---------- */
 .bubble {

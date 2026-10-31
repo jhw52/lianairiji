@@ -33,9 +33,9 @@ export function Home() {
         const el = heroRef.current
         if (!el) return
         const y = window.scrollY
-        const k = Math.min(1, y / 520)
-        el.style.transform = `translateY(${y * 0.08}px) scale(${1 - k * 0.015})`
-        el.style.opacity = String(1 - k * 0.45)
+        const k = Math.min(1, y / 460)
+        el.style.transform = `translateY(${y * 0.2}px) scale(${1 - k * 0.045})`
+        el.style.opacity = String(1 - k * 0.75)
       })
     }
     window.addEventListener('scroll', onScroll, { passive: true })
@@ -151,9 +151,8 @@ export function Home() {
           {photos.map((m: any) => (
             <Link
               key={m.id}
-              to="/albums"
-              className="photo-tile aspect-square rounded-xl"
-              style={{ boxShadow: '0 2px 10px rgba(58,51,44,.08)' }}
+              to={`/albums?photo=${m.id}`}
+              className="photo-tile photo-tile--cover aspect-square rounded-xl"
             >
               {m.thumb ? (
                 <img src={m.thumb} alt="" loading="lazy" />
