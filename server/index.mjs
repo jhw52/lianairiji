@@ -1,7 +1,7 @@
 import express from 'express'
 import path from 'node:path'
 import fs from 'node:fs'
-import { ROOT, MEDIA_DIR, SANDBOX_MEDIA, ensureSeed, ensureGuests, getSetting, runInSandbox, resetSandbox } from './db.mjs'
+import { ROOT, MEDIA_DIR, SANDBOX_MEDIA, ensureSeed, ensureGuests, getSetting, runInSandbox, resetSandbox, run } from './db.mjs'
 import { registerRoutes } from './routes.mjs'
 import { registerLifeRoutes } from './routes-life.mjs'
 import { sseHandler, heartbeat } from './events.mjs'
@@ -15,6 +15,8 @@ const DIST = path.join(ROOT, 'dist')
 resetSandbox()
 const seeded = ensureSeed()
 ensureGuests()
+// 清理 60 天前的变更流水，避免无限增长
+run(`DELETE FROM changes WHERE at < ?`, new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 19))
 if (seeded) {
   console.log('[seed] 已创建初始账号：小咪 / xm123456，猪猪 / zz123456（登录后请在设置里修改）')
 }

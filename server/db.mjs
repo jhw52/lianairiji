@@ -21,6 +21,14 @@ db.exec('PRAGMA foreign_keys = ON;')
 db.exec('PRAGMA busy_timeout = 5000;')
 
 const SCHEMA = `
+CREATE TABLE IF NOT EXISTS changes (
+  id TEXT PRIMARY KEY,
+  module TEXT NOT NULL,
+  actor_id TEXT,
+  at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_changes_module ON changes(module, at);
+
 CREATE TABLE IF NOT EXISTS module_reads (
   user_id TEXT NOT NULL,
   module TEXT NOT NULL,

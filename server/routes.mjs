@@ -84,6 +84,34 @@ function bumpRow(table, id, patch) {
 }
 
 export function registerRoutes(app) {
+
+  // 记录"谁在什么时候改了哪个模块"，用于给别人显示红点
+  const MODULE_PATHS = [
+    [/^\/api\/media/, 'albums'],
+    [/^\/api\/albums/, 'albums'],
+    [/^\/api\/moments/, 'timeline'],
+    [/^\/api\/cycles/, 'calendar'],
+    [/^\/api\/intimacy/, 'calendar'],
+    [/^\/api\/anniversaries/, 'anniversaries'],
+    [/^\/api\/todos/, 'wishes'],
+    [/^\/api\/messages/, 'whisper']
+  ]
+
+  app.use((req, res, next) => {
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next()
+    const hit = MODULE_PATHS.find(([re]) => re.test(req.path))
+    if (!hit) return next()
+    res.on('finish', () => {
+      const u = req.user
+      if (res.statusCode >= 400 || !u || u.guest_mode !== 'none') return
+      try {
+        run(`INSERT INTO changes(id, module, actor_id, at) VALUES(?,?,?,?)`,
+          crypto.randomUUID(), hit[1], u.id, nowIso())
+      } catch { /* 忽略 */ }
+    })
+    next()
+  })
+
   // ---------- 认证 ----------
   app.post('/api/auth/login', h(async (req, res) => {
     const wait = loginGuard(req.ip)
@@ -174,26 +202,23 @@ export function registerRoutes(app) {
   }))
 
   // ---------- 未读提醒 ----------
-  const UNREAD_SOURCES = {
-    albums: `SELECT MAX(COALESCE(updated_at, created_at)) AS t FROM media WHERE deleted_at IS NULL AND usage = 'gallery'`,
-    timeline: `SELECT MAX(COALESCE(updated_at, created_at)) AS t FROM moments WHERE deleted_at IS NULL`,
-    calendar: `SELECT MAX(t) AS t FROM (SELECT MAX(COALESCE(updated_at, created_at)) AS t FROM cycle_records UNION ALL SELECT MAX(COALESCE(updated_at, created_at)) AS t FROM intimacy_records)`,
-    anniversaries: `SELECT MAX(COALESCE(updated_at, created_at)) AS t FROM anniversaries`,
-    wishes: `SELECT MAX(COALESCE(updated_at, created_at)) AS t FROM todos`,
-    whisper: `SELECT MAX(COALESCE(updated_at, created_at)) AS t FROM messages WHERE deleted_at IS NULL`
-  }
+  const MODULES = ['albums', 'timeline', 'calendar', 'anniversaries', 'wishes', 'whisper']
 
   app.get('/api/unread', authRequired, h(async (req, res) => {
     const now = nowIso()
     const items = {}
-    for (const [key, sql] of Object.entries(UNREAD_SOURCES)) {
+    for (const key of MODULES) {
       const row = get(`SELECT seen_at FROM module_reads WHERE user_id = ? AND module = ?`, req.user.id, key)
       if (!row) {
         run(`INSERT OR IGNORE INTO module_reads(user_id, module, seen_at) VALUES(?,?,?)`, req.user.id, key, now)
         items[key] = { unread: false, at: null }
         continue
       }
-      const last = get(sql)?.t || null
+      // 只看别人改的，自己改的不算
+      const last = get(
+        `SELECT MAX(at) AS t FROM changes WHERE module = ? AND actor_id != ?`,
+        key, req.user.id
+      )?.t || null
       items[key] = { unread: !!last && last > row.seen_at, at: last }
     }
     ok(res, { items })
