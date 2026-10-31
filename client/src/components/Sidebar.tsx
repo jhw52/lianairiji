@@ -4,6 +4,8 @@ import { Icon } from './Icon'
 import { useAuth } from '../lib/session'
 import { avatarSrc } from '../lib/avatar'
 import { useUnread } from '../lib/unread'
+import { usePrivacy } from '../lib/privacy'
+import { showNotice } from '../lib/notice'
 
 const NAV = [
   { to: '/', label: '首页', icon: 'home', end: true },
@@ -24,6 +26,21 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
   const { user, settings, logout, patchSettings, live } = useAuth()
   const { items: unread } = useUnread()
   const anyUnread = Object.values(unread).some((i: any) => i?.unread)
+  const { unlockFav } = usePrivacy()
+  const albumTaps = useRef({ n: 0, at: 0 })
+
+  // 连点三下「相册」才显示收藏
+  const onAlbumTap = () => {
+    const now = Date.now()
+    albumTaps.current = now - albumTaps.current.at <= 900
+      ? { n: albumTaps.current.n + 1, at: now }
+      : { n: 1, at: now }
+    if (albumTaps.current.n >= 3) {
+      albumTaps.current = { n: 0, at: 0 }
+      unlockFav()
+      showNotice('收藏已显示')
+    }
+  }
   const navigate = useNavigate()
   const [width, setWidth] = useState(() => Number(localStorage.getItem('sidebar.width')) || 248)
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar.collapsed') === '1')
@@ -106,7 +123,14 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
 
         <nav className="flex-1 overflow-y-auto px-2.5 pb-3 space-y-0.5">
           {NAV.map((item) => (
-            <NavItem key={item.to} {...item} unread={!!(item as any).module && unread[(item as any).module]?.unread} collapsed={isCollapsed} onNavigate={onClose} />
+            <NavItem
+              key={item.to}
+              {...item}
+              onTap={item.to === '/albums' ? onAlbumTap : undefined}
+              unread={!!(item as any).module && unread[(item as any).module]?.unread}
+              collapsed={isCollapsed}
+              onNavigate={onClose}
+            />
           ))}
         </nav>
 
@@ -188,15 +212,15 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
 }
 
 function NavItem({
-  to, label, icon, end, unread, collapsed, onNavigate
+  to, label, icon, end, unread, onTap, collapsed, onNavigate
 }: {
-  to: string; label: string; icon: string; end?: boolean; unread?: boolean; collapsed: boolean; onNavigate: () => void
+  to: string; label: string; icon: string; end?: boolean; unread?: boolean; onTap?: () => void; collapsed: boolean; onNavigate: () => void
 }) {
   return (
     <NavLink
       to={to}
       end={end}
-      onClick={onNavigate}
+      onClick={() => { onTap?.(); onNavigate() }}
       title={collapsed ? label : undefined}
       className={({ isActive }) => `nav-item ${isActive ? 'nav-item-active' : ''}`}
       style={({ isActive }) => (isActive ? { background: '#c0705f10', color: '#a85c4d' } : undefined)}

@@ -5,12 +5,13 @@ import { fmtDate, weekday } from '../lib/utils'
 import { DateField, isValidDate } from './DateField'
 
 export function Lightbox({
-  items, index, onClose, onChange
+  items, index, onClose, onChange, showFavorite
 }: {
   items: any[]
   index: number
   onClose: () => void
   onChange: (next: number) => void
+  showFavorite?: boolean
 }) {
   const item = items[index]
   const [caption, setCaption] = useState('')
@@ -200,9 +201,11 @@ export function Lightbox({
                 <Icon name="edit" size={17} />
               </button>
             )}
-            <button className="p-2 rounded-lg hover:bg-white/10" onClick={toggleFav} title="收藏">
-              <Icon name="star" size={17} className={item.favorite ? 'text-[#e8b06a]' : 'text-white/60'} />
-            </button>
+            {showFavorite && (
+              <button className="p-2 rounded-lg hover:bg-white/10" onClick={toggleFav} title="收藏">
+                <Icon name="star" size={17} className={item.favorite ? 'text-[#e8b06a]' : 'text-white/60'} />
+              </button>
+            )}
             <a
               className="p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/10"
               href={item.orig}

@@ -138,7 +138,7 @@ export function registerRoutes(app) {
   app.post('/api/auth/logout', h(async (req, res) => {
     const u = currentUser(req)
     destroySession(req, res)
-    if (u?.guest_mode === 'sandbox') resetSandbox()
+    if (u?.guest_mode === 'sandbox') resetSandbox(u.session_id)
     ok(res, { ok: true })
   }))
 

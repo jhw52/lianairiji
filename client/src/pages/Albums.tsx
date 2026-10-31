@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useModuleNotice } from '../lib/unread'
+import { usePrivacy } from '../lib/privacy'
 import { useApi, useAuth } from '../lib/session'
 import { Icon } from '../components/Icon'
 import { Uploader } from '../components/Uploader'
@@ -38,6 +39,7 @@ export function Albums() {
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [selBusy, setSelBusy] = useState(false)
+  const { favUnlocked } = usePrivacy()
 
   const cancelSel = () => { setSelecting(false); setSelected(new Set()) }
   const toggleSel = (id: string) => setSelected((prev) => {
@@ -56,6 +58,23 @@ export function Albums() {
       await load(true)
     } catch (e: any) {
       alert(e.message || '删除失败')
+    } finally {
+      setSelBusy(false)
+    }
+  }
+
+  const batchFav = async (value: boolean) => {
+    if (!selected.size) return
+    setSelBusy(true)
+    try {
+      for (const id of selected) {
+        const m = flat.find((x) => x.id === id)
+        await api(`/api/media/${id}`, { method: 'PATCH', body: { favorite: value, rev: m?.rev } })
+      }
+      cancelSel()
+      await load(true)
+    } catch (e: any) {
+      alert(e.message || '操作失败')
     } finally {
       setSelBusy(false)
     }
@@ -94,6 +113,11 @@ export function Albums() {
       setMoreLoading(false)
     }
   }, [base, cursor])
+
+  // 收藏未解锁时不能停在收藏页
+  useEffect(() => {
+    if (tab === 'fav' && !favUnlocked) setTab('day')
+  }, [tab, favUnlocked])
 
   useEffect(() => {
     if (tab === 'albums' || tab === 'ai') return
@@ -149,7 +173,7 @@ export function Albums() {
           </p>
         </div>
         <div className="tabs overflow-x-auto max-w-full">
-          {TABS.map((t) => (
+          {TABS.filter((t) => t.key !== 'fav' || favUnlocked).map((t) => (
             <button key={t.key} className="tab" data-active={tab === t.key} onClick={() => setTab(t.key)}>
               {t.label}
             </button>
@@ -167,6 +191,18 @@ export function Albums() {
                 已选 {selected.size} 项
               </span>
               <button className="btn btn-sm" onClick={() => setSelected(new Set(flat.map((m) => m.id)))}>全选</button>
+              {favUnlocked && (
+                <>
+                  <button className="btn btn-sm" onClick={() => batchFav(true)} disabled={!selected.size || selBusy}>
+                    {selBusy ? '处理中…' : '收藏'}
+                  </button>
+                  {tab === 'fav' && (
+                    <button className="btn btn-sm" onClick={() => batchFav(false)} disabled={!selected.size || selBusy}>
+                      取消收藏
+                    </button>
+                  )}
+                </>
+              )}
               <button className="btn btn-sm" onClick={batchSave} disabled={!selected.size || selBusy}>
                 保存到本地
               </button>
@@ -248,6 +284,7 @@ export function Albums() {
                     <PhotoCard
                       key={item.id}
                       item={item}
+                      showFavorite={favUnlocked}
                       selecting={selecting}
                       selected={selected.has(item.id)}
                       onToggle={() => toggleSel(item.id)}
@@ -272,6 +309,7 @@ export function Albums() {
       {lightbox !== null && flat[lightbox] && (
         <Lightbox
           items={flat}
+          showFavorite={favUnlocked}
           index={lightbox}
           onClose={() => setLightbox(null)}
           onChange={setLightbox}
@@ -317,13 +355,14 @@ export function Albums() {
 }
 
 function PhotoCard({
-  item, onClick, selecting, selected, onToggle
+  item, onClick, selecting, selected, onToggle, showFavorite
 }: {
   item: any
   onClick: () => void
   selecting?: boolean
   selected?: boolean
   onToggle?: () => void
+  showFavorite?: boolean
 }) {
   const ratio = item.width && item.height ? `${item.width}/${item.height}` : '4/5'
   return (
@@ -351,7 +390,7 @@ function PhotoCard({
           动图
         </span>
       )}
-      {item.favorite && (
+      {showFavorite && item.favorite && (
         <span className="absolute top-2 right-2" style={{ color: '#f2c177' }}>
           <Icon name="star" size={13} />
         </span>

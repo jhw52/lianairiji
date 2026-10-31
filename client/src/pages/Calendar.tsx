@@ -42,7 +42,7 @@ export function CalendarPage() {
   useModuleNotice('calendar')
   const [month, setMonth] = useState(monthStr())
   const [mode, setMode] = useState<Mode>(() => (localStorage.getItem('calendar.mode.v2') === 'cycle' ? 'cycle' : 'event'))
-  const [showIntimacy, setShowIntimacy] = useState(() => sessionStorage.getItem('calendar.intimacy') === '1')
+  const [showIntimacy, setShowIntimacy] = useState(false)
   const taps = useRef({ n: 0, at: 0 })
 
   // 连点三下「今天」才显示亲密记录；跳转延后一点，免得抽屉挡住后续点击
@@ -55,7 +55,6 @@ export function CalendarPage() {
       taps.current = { n: 0, at: 0 }
       if (!showIntimacy) {
         setShowIntimacy(true)
-        sessionStorage.setItem('calendar.intimacy', '1')
         showNotice('亲密记录已显示')
       }
       return

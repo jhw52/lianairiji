@@ -52,7 +52,7 @@ export function currentUser(req) {
   if (req.user !== undefined) return req.user
   const token = parseCookies(req.headers.cookie)[COOKIE]
   if (!token) return (req.user = null)
-  const row = get(`SELECT s.expires_at, u.id, u.username, u.display_name, u.role, u.avatar_path, u.guest_mode
+  const row = get(`SELECT s.expires_at, s.id AS session_id, u.id, u.username, u.display_name, u.role, u.avatar_path, u.guest_mode
                    FROM sessions s JOIN users u ON u.id = s.user_id
                    WHERE s.token_hash = ?`, hashToken(token))
   if (!row) return (req.user = null)

@@ -197,15 +197,17 @@ export function today() {
   return nowIso().slice(0, 10)
 }
 
-/* ---------------- 游客沙盒：独立数据库 + 独立媒体目录 ---------------- */
-export const SANDBOX_DIR = path.join(DATA_DIR, 'sandbox')
-export const SANDBOX_MEDIA = path.join(SANDBOX_DIR, 'media')
+/* ---------------- 游客沙盒：每个会话独立数据库 + 独立媒体目录 ---------------- */
+export const SANDBOX_ROOT = path.join(DATA_DIR, 'sandbox')
 export const als = new AsyncLocalStorage()
 export const mainDb = db
-let sandboxHandle = null
 
-export const sandboxDb = () => sandboxHandle
+/** sessionId -> { db, mediaDir, key } */
+const sandboxes = new Map()
+const MAX_OPEN = 16
+
 export const inSandbox = () => !!als.getStore()?.db
+export const sandboxKey = () => als.getStore()?.key || null
 
 const activeDb = () => als.getStore()?.db || db
 export const all = (sql, ...params) => activeDb().prepare(sql).all(...params)
@@ -225,20 +227,35 @@ function migrate(handle) {
   ensure('messages', 'visibility', `visibility TEXT NOT NULL DEFAULT 'public'`)
   ensure('messages', 'read_at', 'read_at TEXT')
   ensure('cycle_records', 'symptoms', 'symptoms TEXT')
-  ensure('media', 'usage', "usage TEXT NOT NULL DEFAULT 'gallery'")
-  ensure('users', 'guest_mode', "guest_mode TEXT NOT NULL DEFAULT 'none'")
+  ensure('media', 'usage', `usage TEXT NOT NULL DEFAULT 'gallery'`)
+  ensure('users', 'guest_mode', `guest_mode TEXT NOT NULL DEFAULT 'none'`)
 }
 
 migrate(db)
 
-/** 打开（或创建）游客沙盒数据库，并复制站点设置 */
-export function openSandbox() {
-  if (sandboxHandle) return sandboxHandle
-  fs.mkdirSync(SANDBOX_DIR, { recursive: true })
-  for (const sub of ['orig', 'thumb', 'large', 'micro']) {
-    fs.mkdirSync(path.join(SANDBOX_MEDIA, sub), { recursive: true })
+function sandboxDirFor(key) {
+  const safe = String(key || 'anon').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 64) || 'anon'
+  return path.join(SANDBOX_ROOT, safe)
+}
+
+/** 打开（或创建）某个会话的沙盒，并把站点设置复制进去 */
+export function openSandbox(key) {
+  const k = String(key || 'anon')
+  const cached = sandboxes.get(k)
+  if (cached) {
+    // 简单 LRU：命中就挪到末尾
+    sandboxes.delete(k)
+    sandboxes.set(k, cached)
+    return cached
   }
-  const handle = new DatabaseSync(path.join(SANDBOX_DIR, 'app.db'))
+
+  const dir = sandboxDirFor(k)
+  const mediaDir = path.join(dir, 'media')
+  fs.mkdirSync(dir, { recursive: true })
+  for (const sub of ['orig', 'thumb', 'large', 'micro']) {
+    fs.mkdirSync(path.join(mediaDir, sub), { recursive: true })
+  }
+  const handle = new DatabaseSync(path.join(dir, 'app.db'))
   handle.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;')
   applySchema(handle)
   handle.exec(`CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`)
@@ -249,20 +266,55 @@ export function openSandbox() {
   for (const r of rows) ins.run(r.key, r.value)
   handle.prepare("INSERT OR REPLACE INTO meta(key, value) VALUES('version', '1')").run()
 
-  sandboxHandle = handle
-  return handle
+  const entry = { db: handle, mediaDir, key: k }
+  sandboxes.set(k, entry)
+
+  // 打开太多就关掉最旧的（文件保留，下次再开）
+  while (sandboxes.size > MAX_OPEN) {
+    const [oldKey, old] = sandboxes.entries().next().value
+    try { old.db.close() } catch { /* ignore */ }
+    sandboxes.delete(oldKey)
+  }
+  return entry
 }
 
-/** 退出游客后销毁沙盒，相当于「不保存」 */
-export function resetSandbox() {
-  try { sandboxHandle?.close() } catch { /* ignore */ }
-  sandboxHandle = null
-  fs.rmSync(SANDBOX_DIR, { recursive: true, force: true })
+/** 销毁沙盒：传 key 只删这个会话；不传就全删 */
+export function resetSandbox(key) {
+  if (key) {
+    const k = String(key)
+    const e = sandboxes.get(k)
+    if (e) {
+      try { e.db.close() } catch { /* ignore */ }
+      sandboxes.delete(k)
+    }
+    fs.rmSync(sandboxDirFor(k), { recursive: true, force: true })
+    return
+  }
+  for (const e of sandboxes.values()) {
+    try { e.db.close() } catch { /* ignore */ }
+  }
+  sandboxes.clear()
+  fs.rmSync(SANDBOX_ROOT, { recursive: true, force: true })
 }
 
-/** 给沙盒请求挂上下文 */
-export function runInSandbox(fn) {
-  return als.run({ db: openSandbox(), mediaDir: SANDBOX_MEDIA }, fn)
+/** 给沙盒请求挂上下文（按会话隔离） */
+export function runInSandbox(key, fn) {
+  const entry = openSandbox(key)
+  return als.run({ db: entry.db, mediaDir: entry.mediaDir, key: entry.key }, fn)
+}
+
+/** 清理已经没有对应会话的沙盒目录（会话过期/异常退出的残留） */
+export function sweepSandboxes() {
+  let dirs = []
+  try {
+    dirs = fs.readdirSync(SANDBOX_ROOT, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
+  } catch { return }
+  let removed = 0
+  for (const name of dirs) {
+    const alive = mainGet('SELECT 1 AS x FROM sessions WHERE id = ?', name)
+    if (!alive) { resetSandbox(name); removed += 1 }
+  }
+  return removed
 }
 
 export function currentMediaDir() {

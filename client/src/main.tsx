@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { createRoot } from 'react-dom/client'
 import { AuthProvider, useAuth } from './lib/session'
+import { PrivacyProvider } from './lib/privacy'
 import { Shell } from './components/Shell'
 import { Login } from './pages/Login'
 import { Home } from './pages/Home'
@@ -81,7 +82,9 @@ function App() {
 createRoot(document.getElementById('root')!).render(
   <BrowserRouter>
     <AuthProvider>
-      <App />
+      <PrivacyProvider>
+        <App />
+      </PrivacyProvider>
     </AuthProvider>
   </BrowserRouter>
 )

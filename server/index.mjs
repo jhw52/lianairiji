@@ -1,7 +1,7 @@
 import express from 'express'
 import path from 'node:path'
 import fs from 'node:fs'
-import { ROOT, MEDIA_DIR, SANDBOX_MEDIA, ensureSeed, ensureGuests, getSetting, runInSandbox, resetSandbox, run } from './db.mjs'
+import { ROOT, MEDIA_DIR, ensureSeed, ensureGuests, getSetting, runInSandbox, resetSandbox, run, currentMediaDir, sweepSandboxes } from './db.mjs'
 import { registerRoutes } from './routes.mjs'
 import { registerLifeRoutes } from './routes-life.mjs'
 import { sseHandler, heartbeat } from './events.mjs'
@@ -50,7 +50,7 @@ app.use(express.json({ limit: '2mb' }))
 // 游客：只读走拦截，沙盒走独立数据库
 app.use((req, res, next) => {
   const u = currentUser(req)
-  if (u?.guest_mode === 'sandbox') return runInSandbox(next)
+  if (u?.guest_mode === 'sandbox') return runInSandbox(u.session_id, next)
   next()
 })
 app.use(guestMiddleware)
@@ -66,9 +66,16 @@ app.get('/api/me', authRequired, (req, res) => {
 
 const staticOpts = { maxAge: '31536000000', immutable: true, index: false, dotfiles: 'ignore' }
 const mainFiles = express.static(MEDIA_DIR, staticOpts)
-const sandboxFiles = express.static(SANDBOX_MEDIA, staticOpts)
 app.use('/files', authRequired, (req, res, next) => {
-  ;(req.user?.guest_mode === 'sandbox' ? sandboxFiles : mainFiles)(req, res, next)
+  // 沙盒会话：从它自己的媒体目录取文件
+  if (req.user?.guest_mode === 'sandbox') {
+    const base = currentMediaDir()
+    const rel = decodeURIComponent(req.path).replace(/^\/+/, '')
+    const file = path.resolve(base, rel)
+    if (!file.startsWith(base + path.sep)) return res.status(400).end()
+    return res.sendFile(file, { maxAge: 31536000000, immutable: true }, (err) => { if (err) next() })
+  }
+  mainFiles(req, res, next)
 })
 
 if (PROD && fs.existsSync(DIST)) {
@@ -96,6 +103,7 @@ app.use((err, req, res, next) => {
 })
 
 setInterval(heartbeat, 25000).unref()
+setInterval(() => sweepSandboxes(), 3600_000).unref()
 
 app.listen(PORT, '0.0.0.0', () => {
   const name = getSetting('site.name', '恋爱日记')
