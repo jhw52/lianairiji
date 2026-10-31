@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useModuleNotice } from '../lib/unread'
 import { usePrivacy } from '../lib/privacy'
+import { showNotice } from '../lib/notice'
 import { useApi, useAuth } from '../lib/session'
 import { Icon } from '../components/Icon'
 import { Uploader } from '../components/Uploader'
@@ -39,7 +40,7 @@ export function Albums() {
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [selBusy, setSelBusy] = useState(false)
-  const { favUnlocked } = usePrivacy()
+  const { favUnlocked, lockFav } = usePrivacy()
 
   const cancelSel = () => { setSelecting(false); setSelected(new Set()) }
   const toggleSel = (id: string) => setSelected((prev) => {
@@ -180,6 +181,25 @@ export function Albums() {
           ))}
         </div>
       </div>
+
+      {tab === 'fav' && favUnlocked && (
+        <div className="flex justify-end mb-2 -mt-1">
+          <button
+            className="text-[11px] px-2 py-1 rounded-md transition-opacity"
+            style={{ color: 'var(--color-faint)', opacity: 0.3, background: 'transparent' }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '1' }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.3' }}
+            onClick={() => {
+              lockFav()
+              setTab('day')
+              showNotice('收藏已隐藏')
+            }}
+            title="隐藏收藏"
+          >
+            隐藏收藏
+          </button>
+        </div>
+      )}
 
       {tab !== 'albums' && tab !== 'ai' && !loading && items.length > 0 && (
         <div className="flex items-center gap-2 mb-4 flex-wrap">
