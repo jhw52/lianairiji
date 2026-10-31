@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Icon } from './Icon'
 import { api } from '../lib/api'
 import { fmtDate, weekday } from '../lib/utils'
+import { DateField, isValidDate } from './DateField'
 
 export function Lightbox({
   items, index, onClose, onChange
@@ -15,10 +16,14 @@ export function Lightbox({
   const [caption, setCaption] = useState('')
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [editTime, setEditTime] = useState(false)
+  const [dayVal, setDayVal] = useState('')
+  const [clockVal, setClockVal] = useState('')
 
   useEffect(() => {
     setCaption(item?.caption || '')
     setEditing(false)
+    setEditTime(false)
   }, [item?.id])
 
   const go = useCallback((dir: number) => {
@@ -68,6 +73,29 @@ export function Lightbox({
       await api(`/api/media/${item.id}`, { method: 'DELETE' })
       onClose()
     } catch (e: any) { alert(e.message) }
+  }
+
+  const openTime = () => {
+    const t = item?.takenAt || ''
+    setDayVal(t.slice(0, 10))
+    setClockVal(t.slice(11, 16) || '00:00')
+    setEditTime(true)
+  }
+
+  const saveTime = async () => {
+    if (!isValidDate(dayVal)) return alert('日期格式是 YYYY-MM-DD')
+    setBusy(true)
+    try {
+      const body: any = { takenAt: `${dayVal}T${clockVal || '00:00'}:00` }
+      if (item.rev) body.rev = item.rev
+      const r = await api<any>(`/api/media/${item.id}`, { method: 'PATCH', body })
+      Object.assign(item, r.media)
+      setEditTime(false)
+    } catch (e: any) {
+      alert(e.message || '保存失败')
+    } finally {
+      setBusy(false)
+    }
   }
 
   const src = item.large || item.orig || item.thumb
@@ -130,10 +158,38 @@ export function Lightbox({
                 {item.caption || <span className="text-white/35">还没有说明，点右边编辑</span>}
               </div>
             )}
-            <div className="text-[12px] text-white/40 mt-1">
-              {fmtDate(item.takenAt)} {weekday(item.takenAt)} · {item.width && item.height ? `${item.width}×${item.height}` : '视频'}
-              {items.length > 1 && ` · ${index + 1}/${items.length}`}
+            <div className="text-[12px] text-white/40 mt-1 flex items-center gap-2 flex-wrap">
+              <span>
+                {fmtDate(item.takenAt)} {weekday(item.takenAt)} · {item.width && item.height ? `${item.width}×${item.height}` : '视频'}
+                {items.length > 1 && ` · ${index + 1}/${items.length}`}
+                {item.takenAt && item.takenAt.slice(11, 16) !== '00:00' ? ` ${item.takenAt.slice(11, 16)}` : ''}
+                {item.takenSource === 'mtime' && ' · 日期待确认'}
+              </span>
+              {!editTime && (
+                <button
+                  className="text-white/50 hover:text-white underline underline-offset-2 write-only"
+                  onClick={openTime}
+                >
+                  修改时间
+                </button>
+              )}
             </div>
+
+            {editTime && (
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                <div style={{ width: 150 }}>
+                  <DateField value={dayVal} onChange={setDayVal} />
+                </div>
+                <input
+                  type="time"
+                  className="input h-9 w-[104px]"
+                  value={clockVal}
+                  onChange={(e) => setClockVal(e.target.value)}
+                />
+                <button className="btn btn-sm btn-primary" onClick={saveTime} disabled={busy}>保存</button>
+                <button className="btn btn-sm" onClick={() => setEditTime(false)}>取消</button>
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-1 shrink-0 write-only">
