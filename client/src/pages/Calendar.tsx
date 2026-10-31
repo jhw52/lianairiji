@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { useModuleNotice } from '../lib/unread'
 import { useApi } from '../lib/session'
@@ -6,6 +6,7 @@ import { Icon } from '../components/Icon'
 import { Modal } from '../components/Modal'
 import { DateField } from '../components/DateField'
 import { fmtDate, todayStr } from '../lib/utils'
+import { showNotice } from '../lib/notice'
 import { nextOccurrence, occurrenceInMonth, RECURRING_LABEL } from '../lib/events'
 
 const WEEK = ['一', '二', '三', '四', '五', '六', '日']
@@ -41,6 +42,29 @@ export function CalendarPage() {
   useModuleNotice('calendar')
   const [month, setMonth] = useState(monthStr())
   const [mode, setMode] = useState<Mode>(() => (localStorage.getItem('calendar.mode.v2') === 'cycle' ? 'cycle' : 'event'))
+  const [showIntimacy, setShowIntimacy] = useState(() => sessionStorage.getItem('calendar.intimacy') === '1')
+  const taps = useRef({ n: 0, at: 0 })
+
+  // 连点三下「今天」才显示亲密记录；跳转延后一点，免得抽屉挡住后续点击
+  const tapTimer = useRef<any>(null)
+  const onTodayTap = () => {
+    const now = Date.now()
+    taps.current = now - taps.current.at <= 900 ? { n: taps.current.n + 1, at: now } : { n: 1, at: now }
+    clearTimeout(tapTimer.current)
+    if (taps.current.n >= 3) {
+      taps.current = { n: 0, at: 0 }
+      if (!showIntimacy) {
+        setShowIntimacy(true)
+        sessionStorage.setItem('calendar.intimacy', '1')
+        showNotice('亲密记录已显示')
+      }
+      return
+    }
+    tapTimer.current = setTimeout(() => {
+      setMonth(monthStr())
+      setSelected(today)
+    }, 320)
+  }
   const { data, loading, reload } = useApi<any>(`/api/calendar?month=${month}`)
   const [selected, setSelected] = useState<string | null>(null)
   const [form, setForm] = useState<null | { type: 'cycle' | 'intimacy' | 'event'; record?: any; date?: string }>(null)
@@ -152,12 +176,12 @@ export function CalendarPage() {
             <h1 className="text-[27px]" style={{ fontFamily: 'var(--font-serif)' }}>日历</h1>
             <div className="tabs">
               <button className="tab" data-active={mode === 'event'} onClick={() => switchMode('event')}>大事记</button>
-              <button className="tab" data-active={mode === 'cycle'} onClick={() => switchMode('cycle')}>经期 · 亲密</button>
+              <button className="tab" data-active={mode === 'cycle'} onClick={() => switchMode('cycle')}>{showIntimacy ? '经期 · 亲密' : '经期'}</button>
             </div>
           </div>
           <p className="text-[13px] mt-1.5" style={{ color: 'var(--color-muted)' }}>
             {mode === 'cycle'
-              ? '记录经期与亲密，日历上只留不刺眼的标记'
+              ? (showIntimacy ? '记录经期与亲密，日历上只留不刺眼的标记' : '记录经期，日历上只留不刺眼的标记')
               : '纪念日与重要事件，点某一天就能记下来'}
           </p>
         </div>
@@ -166,7 +190,7 @@ export function CalendarPage() {
           <button className="btn btn-sm" onClick={() => setMonth(addMonths(month, -1))} aria-label="上个月"><Icon name="left" size={15} /></button>
           <div className="num text-[16px] px-2 min-w-[110px] text-center">{y} 年 {m} 月</div>
           <button className="btn btn-sm" onClick={() => setMonth(addMonths(month, 1))} aria-label="下个月"><Icon name="right" size={15} /></button>
-          <button className="btn btn-sm" onClick={() => { setMonth(monthStr()); setSelected(today) }}>今天</button>
+          <button className="btn btn-sm" onClick={onTodayTap}>今天</button>
         </div>
       </div>
 
@@ -205,7 +229,7 @@ export function CalendarPage() {
                       ? evs.slice(0, 2).map((a: any) => (
                         <span key={a.id} className="text-[14px] leading-none">{a.icon || '💗'}</span>
                       ))
-                      : inti > 0 && <span className="cal-dot" />}
+                      : showIntimacy && inti > 0 && <span className="cal-dot" />}
                   </span>
                 </button>
               )
@@ -218,7 +242,9 @@ export function CalendarPage() {
                 <Legend color="#f3ddd9" border="#e2b9b1" label="经期" />
                 <Legend color="#fdf6ea" border="#dcc9ae" label="预计" dashed />
                 <Legend color="#f3f1e9" border="transparent" label="易孕期" />
-                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: '#c0705f' }} />亲密</span>
+                {showIntimacy && (
+                  <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ background: '#c0705f' }} />亲密</span>
+                )}
               </>
             ) : (
               <>
@@ -271,9 +297,11 @@ export function CalendarPage() {
                   <button className="btn justify-start write-only" onClick={() => setForm({ type: 'cycle', date: selected || today })}>
                     <span className="w-2 h-2 rounded-full" style={{ background: '#c0705f' }} /> 记经期
                   </button>
-                  <button className="btn justify-start write-only" onClick={() => setForm({ type: 'intimacy', date: selected || today })}>
-                    <span className="w-2 h-2 rounded-full" style={{ background: '#c9a227' }} /> 记亲密
-                  </button>
+                  {showIntimacy && (
+                    <button className="btn justify-start write-only" onClick={() => setForm({ type: 'intimacy', date: selected || today })}>
+                      <span className="w-2 h-2 rounded-full" style={{ background: '#c9a227' }} /> 记亲密
+                    </button>
+                  )}
                 </div>
                 <p className="text-[11px] mt-4 leading-5" style={{ color: 'var(--color-faint)' }}>
                   {summary?.disclaimer || '预测基于历史数据，仅供参考，不能作为避孕或医疗依据'}
@@ -341,6 +369,7 @@ export function CalendarPage() {
           date={selected}
           cycles={dayCycles}
           intimacy={dayIntimacy}
+          showIntimacy={showIntimacy}
           onClose={() => setSelected(null)}
           onAdd={(type) => setForm({ type, date: selected })}
           onEdit={(type, record) => setForm({ type, record })}
@@ -400,11 +429,12 @@ function DrawerShell({ date, onClose, children }: { date: string; onClose: () =>
 }
 
 function CycleDrawer({
-  date, cycles, intimacy, onClose, onAdd, onEdit
+  date, cycles, intimacy, showIntimacy, onClose, onAdd, onEdit
 }: {
   date: string
   cycles: any[]
   intimacy: any[]
+  showIntimacy: boolean
   onClose: () => void
   onAdd: (t: 'cycle' | 'intimacy') => void
   onEdit: (t: 'cycle' | 'intimacy', r: any) => void
@@ -422,7 +452,7 @@ function CycleDrawer({
             <Icon name="edit" size={14} className="opacity-40" />
           </button>
         ))}
-        {intimacy.map((r: any) => (
+        {(showIntimacy ? intimacy : []).map((r: any) => (
           <button key={r.id} className="rec-item" onClick={() => onEdit('intimacy', r)}>
             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: '#c9a227' }} />
             <span className="flex-1 text-left">
@@ -431,13 +461,13 @@ function CycleDrawer({
             <Icon name="edit" size={14} className="opacity-40" />
           </button>
         ))}
-        {!cycles.length && !intimacy.length && (
+        {!cycles.length && (!showIntimacy || !intimacy.length) && (
           <p className="text-[13px] py-6 text-center" style={{ color: 'var(--color-faint)' }}>这一天还没有记录</p>
         )}
       </div>
       <div className="grid grid-cols-2 gap-2 mt-5 write-only">
         <button className="btn" onClick={() => onAdd('cycle')}>记经期</button>
-        <button className="btn" onClick={() => onAdd('intimacy')}>记亲密</button>
+        {showIntimacy && <button className="btn" onClick={() => onAdd('intimacy')}>记亲密</button>}
       </div>
     </DrawerShell>
   )
