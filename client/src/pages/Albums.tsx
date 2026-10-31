@@ -3,6 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useModuleNotice } from '../lib/unread'
 import { usePrivacy } from '../lib/privacy'
+import { DateField, isValidDate } from '../components/DateField'
 import { showNotice } from '../lib/notice'
 import { useApi, useAuth } from '../lib/session'
 import { Icon } from '../components/Icon'
@@ -40,6 +41,8 @@ export function Albums() {
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [selBusy, setSelBusy] = useState(false)
+  const [dayQuery, setDayQuery] = useState('')
+  const [dayFilter, setDayFilter] = useState('')
   const { favUnlocked, lockFav } = usePrivacy()
 
   const cancelSel = () => { setSelecting(false); setSelected(new Set()) }
@@ -97,7 +100,7 @@ export function Albums() {
   const albums = useApi<any>(tab === 'albums' ? '/api/albums' : null)
 
   const scope = tab === 'video' ? 'video' : tab === 'fav' ? 'fav' : 'photo'
-  const base = `/api/media?scope=${scope}`
+  const base = `/api/media?scope=${scope}` + (dayFilter ? `&day=${dayFilter}` : '')
 
   const load = useCallback(async (reset: boolean) => {
     if (reset) setLoading(true); else setMoreLoading(true)
@@ -131,7 +134,7 @@ export function Albums() {
     if (tab === 'albums' || tab === 'ai') return
     load(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, version])
+  }, [tab, version, dayFilter])
 
   const groups = useMemo(() => {
     if (tab === 'all' || tab === 'fav' || tab === 'video') {
@@ -205,6 +208,29 @@ export function Albums() {
           >
             隐藏收藏
           </button>
+        </div>
+      )}
+
+      {tab === 'day' && (
+        <div className="flex items-center gap-2 mb-3 flex-wrap">
+          <div style={{ width: 150 }}>
+            <DateField value={dayQuery} onChange={setDayQuery} />
+          </div>
+          <button
+            className="btn btn-sm"
+            onClick={() => {
+              if (!isValidDate(dayQuery)) return alert('日期格式是 YYYY-MM-DD')
+              setDayFilter(dayQuery)
+            }}
+          >
+            查这一天
+          </button>
+          {dayFilter && (
+            <>
+              <span className="text-[12px]" style={{ color: 'var(--color-muted)' }}>只看 {dayFilter}</span>
+              <button className="btn btn-sm" onClick={() => { setDayFilter(''); setDayQuery('') }}>显示全部</button>
+            </>
+          )}
         </div>
       )}
 
@@ -288,7 +314,7 @@ export function Albums() {
             ))}
           </div>
         ) : items.length === 0 ? (
-          <Empty tab={tab} />
+          <Empty tab={tab} day={dayFilter} />
         ) : (
           <>
             {groups.map((g) => (
@@ -445,14 +471,16 @@ function PhotoCard({
   )
 }
 
-function Empty({ tab }: { tab: Tab }) {
+function Empty({ tab, day }: { tab: Tab; day?: string }) {
   const map: Record<string, { icon: string; title: string; desc: string }> = {
     day: { icon: 'image', title: '还没有照片', desc: '把手机里的照片拖上来，会自动按拍摄日期归档' },
     all: { icon: 'image', title: '还没有照片', desc: '从上传第一张开始吧' },
     video: { icon: 'play', title: '还没有视频', desc: '视频会单独归档，不参与人脸分类' },
     fav: { icon: 'star', title: '还没有收藏', desc: '在照片大图里点星星，就会出现在这里' }
   }
-  const m = map[tab] || map.all
+  const m = day
+    ? { icon: 'image', title: '这一天还没有照片', desc: '换个日期看看，或点「显示全部」回到按天列表' }
+    : (map[tab] || map.all)
   return (
     <div className="card p-12 text-center">
       <div className="w-14 h-14 rounded-2xl grid place-items-center mx-auto mb-4" style={{ background: '#f6ecdd', color: '#b08a6c' }}>

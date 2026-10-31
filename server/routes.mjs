@@ -488,7 +488,12 @@ export function registerRoutes(app) {
          VALUES(?,?,?,?,?,?,?,?,?)`,
       id, date, String(title).slice(0, 100), String(content || ''), String(place || '').slice(0, 80),
       String(mood || '').slice(0, 20), req.user.id, ts, ts)
-    broadcast(['moments'], req.user.display_name)
+
+    // 同步到日历「大事记」（一次性事件），日历改这里不会反过来生成日记
+    run(`INSERT INTO anniversaries(id, title, date, recurring, kind, icon, note, moment_id, created_at, updated_at)
+         VALUES(?,?,?,?,?,?,?,?,?,?)`,
+      crypto.randomUUID(), String(title).slice(0, 60), date, 'once', 'event', '💗', '', id, ts, ts)
+    broadcast(['moments', 'life'], req.user.display_name)
     ok(res, { moment: get(`SELECT * FROM moments WHERE id = ?`, id) })
   }))
 
@@ -501,13 +506,20 @@ export function registerRoutes(app) {
       if (req.body[k] !== undefined) patch[k] = req.body[k]
     }
     bumpRow('moments', row.id, patch)
-    broadcast(['moments'], req.user.display_name)
+    const fresh = get(`SELECT * FROM moments WHERE id = ?`, row.id)
+    const linked = get(`SELECT * FROM anniversaries WHERE moment_id = ?`, row.id)
+    if (fresh && linked) {
+      run(`UPDATE anniversaries SET title = ?, date = ?, updated_at = ?, rev = rev + 1 WHERE id = ?`,
+        String(fresh.title).slice(0, 60), fresh.date, nowIso(), linked.id)
+    }
+    broadcast(['moments', 'life'], req.user.display_name)
     ok(res, { moment: get(`SELECT * FROM moments WHERE id = ?`, row.id) })
   }))
 
   app.delete('/api/moments/:id', authRequired, h(async (req, res) => {
     run(`UPDATE moments SET deleted_at = ?, rev = rev + 1 WHERE id = ?`, nowIso(), req.params.id)
-    broadcast(['moments'], req.user.display_name)
+    run(`DELETE FROM anniversaries WHERE moment_id = ?`, req.params.id)
+    broadcast(['moments', 'life'], req.user.display_name)
     ok(res, { ok: true })
   }))
 

@@ -229,6 +229,7 @@ function migrate(handle) {
   ensure('cycle_records', 'symptoms', 'symptoms TEXT')
   ensure('media', 'usage', `usage TEXT NOT NULL DEFAULT 'gallery'`)
   ensure('users', 'guest_mode', `guest_mode TEXT NOT NULL DEFAULT 'none'`)
+  ensure('anniversaries', 'moment_id', 'moment_id TEXT')
 }
 
 migrate(db)
