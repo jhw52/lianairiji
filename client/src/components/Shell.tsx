@@ -5,10 +5,13 @@ import { Icon } from './Icon'
 import { useAuth } from '../lib/session'
 import { WelcomeOverlay } from './WelcomeOverlay'
 import { SiteToast } from './SiteToast'
+import { useUnread } from '../lib/unread'
 
 export function Shell() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const { settings, user, welcome, dismissWelcome } = useAuth()
+  const { items: unread } = useUnread()
+  const anyUnread = Object.values(unread).some((i: any) => i?.unread)
 
   return (
     <div className="app-shell">
@@ -26,11 +29,12 @@ export function Shell() {
           style={{ background: 'rgba(250,246,239,.86)', backdropFilter: 'blur(10px)', borderBottom: '1px solid #e9e0d1' }}
         >
           <button
-            className="p-1.5 -ml-1.5 rounded-lg"
+            className="relative p-1.5 -ml-1.5 rounded-lg"
             onClick={() => setMobileOpen(true)}
             aria-label="打开菜单"
           >
             <Icon name="menu" size={20} />
+            {anyUnread && <span className="nav-dot nav-dot-mini" style={{ top: 3, right: 3 }} />}
           </button>
           <span className="text-[15px] truncate min-w-0 flex-1" style={{ fontFamily: 'var(--font-serif)' }}>
             {settings?.name || '我们的世界'}

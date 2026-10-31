@@ -488,17 +488,18 @@ h1, h2, h3, h4 { font-family: var(--font-serif); font-weight: 600; letter-spacin
 }
 .nav-dot {
   margin-left: auto;
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
-  background: #d1584a;
-  box-shadow: 0 0 0 3px #d1584a22;
+  background: #cf6a5c;
+  box-shadow: 0 0 0 2px rgba(207, 106, 92, .16);
   flex: none;
+  opacity: .85;
 }
 .nav-dot-mini {
   position: absolute;
-  top: 9px;
-  right: 9px;
+  top: 7px;
+  right: 7px;
   margin: 0;
 }
 

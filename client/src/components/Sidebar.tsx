@@ -23,6 +23,7 @@ const COLLAPSED = 72
 export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose: () => void }) {
   const { user, settings, logout, patchSettings, live } = useAuth()
   const { items: unread } = useUnread()
+  const anyUnread = Object.values(unread).some((i: any) => i?.unread)
   const navigate = useNavigate()
   const [width, setWidth] = useState(() => Number(localStorage.getItem('sidebar.width')) || 248)
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('sidebar.collapsed') === '1')
@@ -119,12 +120,13 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
 
           {!mobileOpen && (
             <button
-              className="nav-item w-full text-left"
+              className="nav-item w-full text-left relative"
               onClick={toggleCollapse}
               title={collapsed ? '展开侧边栏' : '收起侧边栏'}
             >
               <Icon name={collapsed ? 'right' : 'left'} size={18} className="shrink-0" />
               {!isCollapsed && <span>收起</span>}
+              {anyUnread && <span className="nav-dot" />}
             </button>
           )}
 
