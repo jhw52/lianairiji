@@ -445,7 +445,7 @@ h1, h2, h3, h4 { font-family: var(--font-serif); font-weight: 600; letter-spacin
 .hero-wash {
   position: absolute;
   inset: 0;
-  background: rgba(250,246,239,.26);
+  background: linear-gradient(100deg, rgba(253,246,234,.93) 0%, rgba(250,242,230,.76) 45%, rgba(244,229,211,.52) 100%);
 }
 .site-bg {
   position: fixed;
