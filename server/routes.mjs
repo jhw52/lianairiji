@@ -226,7 +226,7 @@ export function registerRoutes(app) {
 
   app.post('/api/unread/read', authRequired, h(async (req, res) => {
     const module = String(req.body?.module || '')
-    if (!UNREAD_SOURCES[module]) return fail(res, 400, 'VALIDATION', '未知模块')
+    if (!MODULES.includes(module)) return fail(res, 400, 'VALIDATION', '未知模块')
     run(`INSERT OR REPLACE INTO module_reads(user_id, module, seen_at) VALUES(?,?,?)`, req.user.id, module, nowIso())
     ok(res, { ok: true })
   }))
