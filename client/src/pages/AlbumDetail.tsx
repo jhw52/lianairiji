@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { usePrivacy } from '../lib/privacy'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useAuth } from '../lib/session'
@@ -30,7 +31,8 @@ export function AlbumDetail() {
     }
   }
 
-  useEffect(() => { load() /* eslint-disable-next-line */ }, [id, version])
+  const { favUnlocked } = usePrivacy()
+  useEffect(() => { load() /* eslint-disable-next-line */ }, [id, version, favUnlocked])
 
   const removePhoto = async (mediaId: string) => {
     if (!confirm('从相册里移除这张照片？（不会删除原图）')) return

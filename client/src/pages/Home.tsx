@@ -4,9 +4,11 @@ import { useApi, useAuth } from '../lib/session'
 import { Icon } from '../components/Icon'
 import { elapseParts } from '../lib/utils'
 import { api } from '../lib/api'
+import { usePrivacy } from '../lib/privacy'
 
 export function Home() {
-  const { data, loading } = useApi<any>('/api/home')
+  const { data, loading, reload } = useApi<any>('/api/home')
+  const { favUnlocked } = usePrivacy()
   const { settings } = useAuth()
   const [now, setNow] = useState(() => new Date())
 
@@ -48,6 +50,9 @@ export function Home() {
   useEffect(() => {
     if (data) setHasMore((data.recent?.length || 0) >= 8)
   }, [data])
+
+  // 收藏解锁/隐藏后重新取一次首页数据
+  useEffect(() => { reload() }, [favUnlocked])
 
   const photos = [...recent, ...extra].filter((m, i, arr) => arr.findIndex((x) => x.id === m.id) === i)
 

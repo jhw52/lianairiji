@@ -115,6 +115,13 @@ export function Albums() {
     }
   }, [base, cursor])
 
+  // 收藏解锁/隐藏后重新拉列表
+  useEffect(() => {
+    if (tab === 'albums' || tab === 'ai') return
+    load(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [favUnlocked])
+
   // 收藏未解锁时不能停在收藏页
   useEffect(() => {
     if (tab === 'fav' && !favUnlocked) setTab('day')

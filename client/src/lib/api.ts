@@ -1,3 +1,5 @@
+import { shouldHideFav } from './privacy'
+
 export class ApiError extends Error {
   code: string
   status: number
@@ -13,7 +15,11 @@ export class ApiError extends Error {
 type Opts = { method?: string; body?: any; headers?: Record<string, string>; signal?: AbortSignal }
 
 export async function api<T = any>(path: string, opts: Opts = {}): Promise<T> {
-  const res = await fetch(path, {
+  let target = path
+  if ((!opts.method || opts.method === 'GET') && path.startsWith('/api/') && shouldHideFav()) {
+    target = path + (path.includes('?') ? '&' : '?') + 'hideFav=1'
+  }
+  const res = await fetch(target, {
     method: opts.method || 'GET',
     credentials: 'same-origin',
     headers: {

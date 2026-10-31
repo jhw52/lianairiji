@@ -170,10 +170,11 @@ export function registerRoutes(app) {
 
   // ---------- 首页 ----------
   app.get('/api/home', authRequired, h(async (req, res) => {
-    const recent = all(`SELECT * FROM media WHERE deleted_at IS NULL AND usage = 'gallery' ORDER BY taken_at DESC, created_at DESC LIMIT 8`)
+    const noFav = req.query.hideFav === '1' ? ' AND is_favorite = 0' : ''
+    const recent = all(`SELECT * FROM media WHERE deleted_at IS NULL AND usage = 'gallery'${noFav} ORDER BY taken_at DESC, created_at DESC LIMIT 8`)
     const counts = {
-      photos: get(`SELECT COUNT(*) AS c FROM media WHERE deleted_at IS NULL AND usage = 'gallery' AND kind != 'video'`).c,
-      videos: get(`SELECT COUNT(*) AS c FROM media WHERE deleted_at IS NULL AND usage = 'gallery' AND kind = 'video'`).c,
+      photos: get(`SELECT COUNT(*) AS c FROM media WHERE deleted_at IS NULL AND usage = 'gallery' AND kind != 'video'${noFav}`).c,
+      videos: get(`SELECT COUNT(*) AS c FROM media WHERE deleted_at IS NULL AND usage = 'gallery' AND kind = 'video'${noFav}`).c,
       moments: get(`SELECT COUNT(*) AS c FROM moments WHERE deleted_at IS NULL`).c,
       albums: get(`SELECT COUNT(*) AS c FROM albums WHERE deleted_at IS NULL`).c,
     }
@@ -193,8 +194,9 @@ export function registerRoutes(app) {
   app.get('/api/photos', authRequired, h(async (req, res) => {
     const limit = Math.min(60, Math.max(1, Number(req.query.limit) || 12))
     const offset = Math.max(0, Number(req.query.offset) || 0)
+    const noFav = req.query.hideFav === '1' ? ' AND is_favorite = 0' : ''
     const rows = all(
-      `SELECT * FROM media WHERE deleted_at IS NULL AND usage = 'gallery' AND kind != 'video'
+      `SELECT * FROM media WHERE deleted_at IS NULL AND usage = 'gallery' AND kind != 'video'${noFav}
        ORDER BY taken_at DESC, created_at DESC LIMIT ? OFFSET ?`,
       limit + 1, offset
     )
@@ -310,6 +312,7 @@ export function registerRoutes(app) {
     if (scope === 'video') where.push(`m.kind = 'video'`)
     else if (scope === 'photo') where.push(`m.kind != 'video'`)
     if (scope === 'fav') where.push(`m.is_favorite = 1`)
+    else if (req.query.hideFav === '1') where.push(`m.is_favorite = 0`)
     if (day) { where.push(`m.day = ?`); params.push(day) }
     if (moment) { where.push(`m.moment_id = ?`); params.push(moment) }
     if (q) { where.push(`m.caption LIKE ?`); params.push(`%${q}%`) }
@@ -401,9 +404,10 @@ export function registerRoutes(app) {
   // ---------- 相册 ----------
   app.get('/api/albums', authRequired, h(async (req, res) => {
     const albums = all(`SELECT a.*,
-        (SELECT COUNT(*) FROM album_media am JOIN media m ON m.id = am.media_id AND m.deleted_at IS NULL WHERE am.album_id = a.id) AS photo_count,
+        (SELECT COUNT(*) FROM album_media am JOIN media m ON m.id = am.media_id AND m.deleted_at IS NULL
+          WHERE am.album_id = a.id${req.query.hideFav === '1' ? ' AND m.is_favorite = 0' : ''}) AS photo_count,
         (SELECT m.path_thumb FROM album_media am JOIN media m ON m.id = am.media_id AND m.deleted_at IS NULL
-          WHERE am.album_id = a.id ORDER BY am.sort DESC LIMIT 1) AS cover_thumb
+          WHERE am.album_id = a.id${req.query.hideFav === '1' ? ' AND m.is_favorite = 0' : ''} ORDER BY am.sort DESC LIMIT 1) AS cover_thumb
       FROM albums a WHERE a.deleted_at IS NULL ORDER BY a.sort DESC, a.created_at DESC`)
     ok(res, {
       albums: albums.map((a) => ({
@@ -462,7 +466,7 @@ export function registerRoutes(app) {
   // ---------- 时间轴 ----------
   app.get('/api/moments', authRequired, h(async (req, res) => {
     const rows = all(`SELECT * FROM moments WHERE deleted_at IS NULL ORDER BY date DESC, created_at DESC`)
-    const photos = all(`SELECT * FROM media WHERE moment_id IS NOT NULL AND deleted_at IS NULL
+    const photos = all(`SELECT * FROM media WHERE moment_id IS NOT NULL AND deleted_at IS NULL${req.query.hideFav === '1' ? ' AND is_favorite = 0' : ''}
                         ORDER BY created_at ASC`)
     const byMoment = new Map()
     for (const p of photos) {
